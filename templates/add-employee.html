@@ -300,70 +300,77 @@
 								<h5 class="card-title">Basic Info</h5>
 							</div>
 							<div class="card-body">
-                                <form action="/add_profile" method="post">
+                                <form id="addEmployeeForm">
 									<div class="row">
 										<div class="col-lg-6 col-md-6 col-sm-12">
 											<div class="form-group">
-												<label class="form-label">ID</label>
-												<input type="text" class="form-control" value="{{ emp.id }}">
+												<label class="form-label">Full Name</label>
+												<input type="text" class="form-control" name="FullName" required>
 											</div>
 										</div>
 										<div class="col-lg-6 col-md-6 col-sm-12">
 											<div class="form-group">
-												<label class="form-label">Name</label>
-												<input type="text" class="form-control" value="{{ emp.name }}" required >
+												<label class="form-label">Email</label>
+												<input type="email" class="form-control" name="Email" required>
 											</div>
 										</div>
 										<div class="col-lg-6 col-md-6 col-sm-12">
 											<div class="form-group">
-												<label class="form-label">Department</label>
-												<input type="text" class="form-control" value="{{ emp.group }}">
-											</div>
-										</div>
-                                        <div class="col-lg-6 col-md-6 col-sm-12">
-											<div class="form-group">
-												<label class="form-label">Position</label>
-												<input type="text" class="form-control" value="{{ emp.position }}">
+												<label class="form-label">Phone Number</label>
+												<input type="text" class="form-control" name="PhoneNumber" required>
 											</div>
 										</div>
 										<div class="col-lg-6 col-md-6 col-sm-12">
 											<div class="form-group">
-												<label class="form-label">Joining Date</label>
-												<input name="datepicker" class="datepicker-default form-control" id="datepicker" value="{{ emp.date }}">
-											</div>
-										</div>
-
-										<div class="col-lg-6 col-md-6 col-sm-12">
-											<div class="form-group">
-												<label class="form-label">Password</label>
-												<input type="password" class="form-control" value="{{ emp.password }}">
-											</div>
-										</div>
-										<div class="col-lg-6 col-md-6 col-sm-12">
-											<div class="form-group">
-												<label class="form-label">Confirm Password</label>
-												<input type="password" class="form-control" value="{{ emp.Confirmpassword }}">
-											</div>
-										</div>
-										
-										<div class="col-lg-6 col-md-6 col-sm-12">
-											<div class="form-group">
-												<label class="form-label">Gender</label>
-												<select class="form-control" name="gender" required>
-													<option value="Gender">Gender</option>
-													<option value="Male" selected="">Male</option>
-													<option value="Female">Female</option>
+												<label>Department</label>
+												<select class="form-control" name="DepartmentID" required>
+													{% for dept in departments %}
+													<option value="{{ dept.id }}">{{ dept.name }}</option>
+													{% endfor %}
 												</select>
 											</div>
 										</div>
-										
+										<div class="col-lg-6 col-md-6 col-sm-12">
+											<div class="form-group">
+												<label>Position</label>
+												<select class="form-control" name="PositionID" required>
+													{% for pos in positions %}
+													<option value="{{ pos.id }}">{{ pos.name }}</option>
+													{% endfor %}
+												</select>
+											</div>
+										</div>
 										<div class="col-lg-6 col-md-6 col-sm-12">
 											<div class="form-group">
 												<label class="form-label">Date of Birth</label>
-												<input name="datepicker" class="datepicker-default form-control" id="datepicker1" value="{{ emp.date-of-birth }}">
+												<input type="date" class="form-control" name="DateOfBirth" required>
 											</div>
 										</div>
-										
+										<div class="col-lg-6 col-md-6 col-sm-12">
+											<div class="form-group">
+												<label class="form-label">Hire Date</label>
+												<input type="date" class="form-control" name="HireDate" required>
+											</div>
+										</div>
+										<div class="col-lg-6 col-md-6 col-sm-12">
+											<div class="form-group">
+												<label class="form-label">Gender</label>
+												<select class="form-control" name="Gender" required>
+													<option value="Male">Male</option>
+													<option value="Female">Female</option>
+													<option value="Other">Other</option>
+												</select>
+											</div>
+										</div>
+										<div class="col-lg-6 col-md-6 col-sm-12">
+											<div class="form-group">
+												<label class="form-label">Status</label>
+												<select class="form-control" name="Status" required>
+													<option value="Active">Active</option>
+													<option value="Inactive">Inactive</option>
+												</select>
+											</div>
+										</div>
 										<div class="col-lg-12 col-md-12 col-sm-12">
 											<button type="submit" class="btn btn-primary">Submit</button>
 											<button type="button" class="btn btn-light">Cancel</button>
@@ -428,6 +435,50 @@
 	
 	<!-- Pickdate -->
     <script src="js/plugins-init/pickadate-init.js"></script>
+
+    <script>
+    document.getElementById('addEmployeeForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Get form data
+        const formData = new FormData(this);
+        const data = {};
+        formData.forEach((value, key) => data[key] = value);
+        
+        // Get token from localStorage
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+            alert('Please login first');
+            window.location.href = '/login';
+            return;
+        }
+
+        // Send request to API
+        fetch('/api/add-employee', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to add employee');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Employee added successfully');
+            window.location.href = '/all-employees';
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to add employee. Please try again.');
+        });
+    });
+    </script>
 
 </body>
 </html>

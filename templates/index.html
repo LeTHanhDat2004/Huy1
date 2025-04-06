@@ -8,11 +8,14 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>HR Management System - Admin Dashboard</title>
     <!-- Favicon icon -->
-    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon.png">
-    <link rel="stylesheet" href="vendor/bootstrap-select/dist/css/bootstrap-select.min.css">
-	<!-- Datatable -->
-    <link href="vendor/datatables/css/jquery.dataTables.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('serve_images', filename='favicon.png') }}">
+    <link rel="stylesheet" href="{{ url_for('serve_vendor', filename='jqvmap/css/jqvmap.min.css') }}">
+	<link rel="stylesheet" href="{{ url_for('serve_vendor', filename='chartist/css/chartist.min.css') }}">
+	<!-- Summernote -->
+    <link href="{{ url_for('serve_vendor', filename='summernote/summernote.css') }}" rel="stylesheet">
+	<link rel="stylesheet" href="{{ url_for('serve_vendor', filename='bootstrap-select/dist/css/bootstrap-select.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('serve_css', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('serve_css', filename='skin-3.css') }}">
 
 </head>
 
@@ -41,10 +44,10 @@
             Nav header start
         ***********************************-->
         <div class="nav-header">
-            <a href="index.html" class="brand-logo">
-                <img class="logo-abbr" src="images/logo-white.png" alt="">
-                <img class="logo-compact" src="images/logo-text-white.png" alt="">
-                <img class="brand-title" src="images/logo-text-white.png" alt="">
+            <a href="{{ url_for('index') }}" class="brand-logo">
+                <img class="logo-abbr" src="{{ url_for('serve_images', filename='logo-white.png') }}" alt="HR">
+                <img class="logo-compact" src="{{ url_for('serve_images', filename='logo-text-white.png') }}" alt="HR Management">
+                <img class="brand-title" src="{{ url_for('serve_images', filename='logo-text-white.png') }}" alt="HR Management">
             </a>
 
             <div class="nav-control">
@@ -65,18 +68,10 @@
                 <nav class="navbar navbar-expand">
                     <div class="collapse navbar-collapse justify-content-between">
                         <div class="header-left">
-                            <div class="search_bar dropdown">
-                                <span class="search_icon p-3 c-pointer" data-toggle="dropdown">
-                                    <i class="mdi mdi-magnify"></i>
-                                </span>
-                                <div class="dropdown-menu p-0 m-0">
-                                    <form>
-                                        <input class="form-control" type="search" placeholder="Search" aria-label="Search">
-                                    </form>
-                                </div>
+                            <div class="dashboard_bar">
+                                Dashboard
                             </div>
                         </div>
-
                         <ul class="navbar-nav header-right">
                             <li class="nav-item dropdown notification_dropdown">
                                 <a class="nav-link bell ai-icon" href="#" role="button" data-toggle="dropdown">
@@ -92,8 +87,7 @@
                                             <span class="success"><i class="ti-user"></i></span>
                                             <div class="media-body">
                                                 <a href="#">
-                                                    <p><strong>Martin</strong> has added a <strong>customer</strong> Successfully
-                                                    </p>
+                                                    <p><strong>Martin</strong> has added a <strong>new employee</strong> Successfully</p>
                                                 </a>
                                             </div>
                                             <span class="notify-time">3:20 am</span>
@@ -102,7 +96,7 @@
                                             <span class="primary"><i class="ti-shopping-cart"></i></span>
                                             <div class="media-body">
                                                 <a href="#">
-                                                    <p><strong>Jennifer</strong> purchased Light Dashboard 2.0.</p>
+                                                    <p><strong>Jennifer</strong> approved monthly payroll.</p>
                                                 </a>
                                             </div>
                                             <span class="notify-time">3:20 am</span>
@@ -111,8 +105,7 @@
                                             <span class="danger"><i class="ti-bookmark"></i></span>
                                             <div class="media-body">
                                                 <a href="#">
-                                                    <p><strong>Robin</strong> marked a <strong>ticket</strong> as unsolved.
-                                                    </p>
+                                                    <p><strong>Robin</strong> updated <strong>attendance</strong> records.</p>
                                                 </a>
                                             </div>
                                             <span class="notify-time">3:20 am</span>
@@ -121,7 +114,7 @@
                                             <span class="primary"><i class="ti-heart"></i></span>
                                             <div class="media-body">
                                                 <a href="#">
-                                                    <p><strong>David</strong> purchased Light Dashboard 1.0.</p>
+                                                    <p><strong>David</strong> modified department structure.</p>
                                                 </a>
                                             </div>
                                             <span class="notify-time">3:20 am</span>
@@ -130,8 +123,7 @@
                                             <span class="success"><i class="ti-image"></i></span>
                                             <div class="media-body">
                                                 <a href="#">
-                                                    <p><strong> James.</strong> has added a<strong>customer</strong> Successfully
-                                                    </p>
+                                                    <p><strong>James</strong> has processed <strong>salary</strong> payments Successfully</p>
                                                 </a>
                                             </div>
                                             <span class="notify-time">3:20 am</span>
@@ -142,7 +134,7 @@
                             </li>
                             <li class="nav-item dropdown header-profile">
                                 <a class="nav-link" href="#" role="button" data-toggle="dropdown">
-                                    <img src="images/profile/education/pic1.jpg" width="20" alt="">
+                                    <img src="{{ url_for('serve_images', filename='profile.png') }}" class="img-fluid rounded-circle" alt="profile">
                                 </a>
                                 <div class="dropdown-menu dropdown-menu-right">
                                     <a href="app-profile.html" class="dropdown-item ai-icon">
@@ -175,21 +167,20 @@
             <div class="dlabnav-scroll">
                 <ul class="metismenu" id="menu">
                     <li class="nav-label first">Main Menu</li>
-                    <li><a href="index.html">
+                    <li><a href="{{ url_for('index') }}">
 							<i class="la la-home"></i>
 							<span class="nav-text">Dashboard</span>
 						</a>
-                        
                     </li>
 					<li><a class="has-arrow" href="javascript:void()" aria-expanded="false">
 							<i class="la la-user"></i>
 							<span class="nav-text">Employee Management</span>
 						</a>
                         <ul aria-expanded="false">
-                            <li><a href="all-employees.html">All Employees</a></li>
-                            <li><a href="add-employee.html">Add Employee</a></li>
-                            <li><a href="edit-employee.html">Edit Employee</a></li>
-                            <li><a href="employee-profile.html">Employee Profile</a></li>
+                            <li><a href="{{ url_for('all_employees') }}">All Employees</a></li>
+                            <li><a href="{{ url_for('add_employee') }}">Add Employee</a></li>
+                            <li><a href="{{ url_for('edit_employee') }}">Edit Employee</a></li>
+                            <li><a href="{{ url_for('employee_profile') }}">Employee Profile</a></li>
                         </ul>
                     </li>
 					<li><a class="has-arrow" href="javascript:void()" aria-expanded="false">
@@ -197,9 +188,9 @@
 							<span class="nav-text">Payroll & Attendance Management</span>
 						</a>
                         <ul aria-expanded="false">
-                            <li><a href="payroll-details.html">Payroll Details</a></li>
-                            <li><a href="salary-history.html">Salary History</a></li>
-                            <li><a href="attendance-records.html">Attendance Records</a></li>
+                            <li><a href="{{ url_for('payroll_details') }}">Payroll Details</a></li>
+                            <li><a href="{{ url_for('salary_history') }}">Salary History</a></li>
+                            <li><a href="{{ url_for('attendance_records') }}">Attendance Records</a></li>
                         </ul>
                     </li>
 					<li><a class="has-arrow" href="javascript:void()" aria-expanded="false">
@@ -207,10 +198,10 @@
 							<span class="nav-text">Department & Job Title Management</span>
 						</a>
                         <ul aria-expanded="false">
-                            <li><a href="all-departments.html">All Departments</a></li>
-                            <li><a href="all-job-titles.html">All Job Titles</a></li>
-                            <li><a href="manage-departments.html">Manage Departments</a></li>
-                            <li><a href="manage-job-titles.html">Manage Job Titles</a></li>
+                            <li><a href="{{ url_for('all_departments') }}">All Departments</a></li>
+                            <li><a href="{{ url_for('all_job_titles') }}">All Job Titles</a></li>
+                            <li><a href="{{ url_for('manage_departments') }}">Manage Departments</a></li>
+                            <li><a href="{{ url_for('manage_job_titles') }}">Manage Job Titles</a></li>
                         </ul>
                     </li>
 					<li><a class="has-arrow" href="javascript:void()" aria-expanded="false">
@@ -218,9 +209,10 @@
 							<span class="nav-text">Reports & Analytics</span>
 						</a>
                         <ul aria-expanded="false">
-                            <li><a href="employee-summary.html">Employee Summary</a></li>
-                            <li><a href="payroll-report.html">Payroll Report</a></li>
-                            <
+                            <li><a href="{{ url_for('employee_summary') }}">Employee Summary</a></li>
+                            <li><a href="{{ url_for('payroll_report') }}">Payroll Report</a></li>
+                            <li><a href="{{ url_for('dividend_report') }}">Shareholder Dividend Report</a></li>
+                            <li><a href="{{ url_for('comparative_charts') }}">Comparative Charts</a></li>
                         </ul>
                     </li>
 					<li><a class="has-arrow" href="javascript:void()" aria-expanded="false">
@@ -228,10 +220,10 @@
 							<span class="nav-text">Alerts & Notifications</span>
 						</a>
                         <ul aria-expanded="false">
-                            <li><a href="work-anniversary.html">Work Anniversary</a></li>
-                            <li><a href="leave-alerts.html">Leave Alerts</a></li>
-                            <li><a href="payroll-alerts.html">Payroll Alerts</a></li>
-                            <li><a href="salary-statements.html">Salary Statements</a></li>
+                            <li><a href="{{ url_for('work_anniversary') }}">Work Anniversary</a></li>
+                            <li><a href="{{ url_for('leave_alerts') }}">Leave Alerts</a></li>
+                            <li><a href="{{ url_for('payroll_alerts') }}">Payroll Alerts</a></li>
+                            <li><a href="{{ url_for('salary_statements') }}">Salary Statements</a></li>
                         </ul>
                     </li>
 					<li><a class="has-arrow" href="javascript:void()" aria-expanded="false">
@@ -239,9 +231,9 @@
 							<span class="nav-text">Security & Access Control</span>
 						</a>
                         <ul aria-expanded="false">
-                            <li><a href="user-roles.html">User Roles</a></li>
-                            <li><a href="permissions.html">Permissions</a></li>
-                            <li><a href="access-logs.html">Access Logs</a></li>
+                            <li><a href="{{ url_for('user_roles') }}">User Roles</a></li>
+                            <li><a href="{{ url_for('permissions') }}">Permissions</a></li>
+                            <li><a href="{{ url_for('access_logs') }}">Access Logs</a></li>
                         </ul>
                     </li>					
                 
@@ -251,8 +243,8 @@
 							<span class="nav-text">Pages</span>
 						</a>
                         <ul aria-expanded="false">
-                            <li><a href="page-register.html">Register</a></li>
-                            <li><a href="page-login.html">Login</a></li>
+                            <li><a href="{{ url_for('register') }}">Register</a></li>
+                            <li><a href="{{ url_for('login') }}">Login</a></li>
 
                     </li>
 				</ul>
@@ -261,8 +253,6 @@
         <!--**********************************
             Sidebar end
         ***********************************-->
-
-		
 		
         <!--**********************************
             Content body start
@@ -270,81 +260,87 @@
         <div class="content-body">
             <!-- row -->
             <div class="container-fluid">
-				
-				<div class="row page-titles mx-0">
-                    <div class="col-sm-6 p-md-0">
-                        <div class="welcome-text">
-                            <h4>Salary Payment</h4>
-                        </div>
+				    
+                <div class="row">
+					<div class="col-xl-3 col-xxl-3 col-sm-6">
+						<div class="widget-stat card bg-primary">
+							<div class="card-body">
+								<div class="media">
+									<span class="mr-3">
+										<i class="la la-users"></i>
+									</span>
+									<div class="media-body text-white">
+										<p class="mb-1">Total Employees</p>
+										<h3 class="text-white">1250</h3>
+										<div class="progress mb-2 bg-white">
+                                            <div class="progress-bar progress-animated bg-light" style="width: 80%"></div>
+                                        </div>
+										<small>80% Active Employees</small>
+									</div>
+								</div>
+							</div>
+						</div>
                     </div>
-                    <div class="col-sm-6 p-md-0 justify-content-sm-end mt-2 mt-sm-0 d-flex">
-                        <ol class="breadcrumb">
-                            <li class="breadcrumb-item"><a href="index.html">Home</a></li>
-                            <li class="breadcrumb-item active"><a href="javascript:void(0);">Salary</a></li>
-                            <li class="breadcrumb-item active"><a href="javascript:void(0);">Salary Payment</a></li>
-                        </ol>
+					<div class="col-xl-3 col-xxl-3 col-sm-6">
+						<div class="widget-stat card bg-warning">
+							<div class="card-body">
+								<div class="media">
+									<span class="mr-3">
+										<i class="la la-building"></i>
+									</span>
+									<div class="media-body text-white">
+										<p class="mb-1">Departments</p>
+										<h3 class="text-white">15</h3>
+										<div class="progress mb-2 bg-white">
+                                            <div class="progress-bar progress-animated bg-light" style="width: 50%"></div>
+                                        </div>
+										<small>5 New Departments</small>
+									</div>
+								</div>
+							</div>
+						</div>
                     </div>
+					<div class="col-xl-3 col-xxl-3 col-sm-6">
+						<div class="widget-stat card bg-secondary">
+							<div class="card-body">
+								<div class="media">
+									<span class="mr-3">
+										<i class="la la-clock"></i>
+									</span>
+									<div class="media-body text-white">
+										<p class="mb-1">Attendance Rate</p>
+										<h3 class="text-white">95%</h3>
+										<div class="progress mb-2 bg-white">
+                                            <div class="progress-bar progress-animated bg-light" style="width: 95%"></div>
+                                        </div>
+										<small>This Month</small>
+									</div>
+								</div>
+							</div>
+						</div>
+                    </div>
+					<div class="col-xl-3 col-xxl-3 col-sm-6">
+						<div class="widget-stat card bg-success">
+							<div class="card-body">
+								<div class="media">
+									<span class="mr-3">
+										<i class="la la-dollar"></i>
+									</span>
+									<div class="media-body text-white">
+										<p class="mb-1">Total Payroll</p>
+										<h3 class="text-white">$425,000</h3>
+										<div class="progress mb-2 bg-white">
+                                            <div class="progress-bar progress-animated bg-light" style="width: 30%"></div>
+                                        </div>
+										<small>This Month</small>
+									</div>
+								</div>
+							</div>
+						</div>
+                    </div>
+					
                 </div>
 				
-                <div class="row">
-					<div class="col-lg-12">
-						<div class="card">
-                            <div class="card-header">
-                                <h4 class="card-title">Salary Payment</h4>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table id="payroll_table" class="display" style="min-width: 845px">
-                                        <thead>
-                                            <tr>
-                                                <th>Employee ID</th>
-                                                <th>Employee Name</th>
-                                                <th>Payment ID</th>
-                                                <th>Lương cơ bản</th>
-                                                <th>Tiền thưởng</th>
-                                                <th>Khấu trừ</th>
-                                                <th>Lương ròng</th>
-                                                <th>Payment Type</th>
-                                                <th>Status</th>
-                                                <th>Payment Date</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for payroll in payrolls %}
-                                            <tr>
-                                                <td>{{ payroll.employee_id }}</td>
-                                                <td>{{ payroll.employee_name }}</td>
-                                                <td>#{{ payroll.payment_id }}</td>
-                                                <td><strong>{{ payroll.base_salary }}₫</strong></td>
-                                                <td><strong>{{ payroll.bonus }}₫</strong></td>
-                                                <td><strong>{{ payroll.deductions }}₫</strong></td>
-                                                <td><strong>{{ payroll.net_salary }}₫</strong></td>
-                                                <td>{{ payroll.payment_type }}</td>
-                                                <td>
-                                                    {% if payroll.status == 'Paid' %}
-                                                    <span class="badge badge-success">Paid</span>
-                                                    {% else %}
-                                                    <span class="badge badge-warning">Pending</span>
-                                                    {% endif %}
-                                                </td>
-                                                <td>{{ payroll.payment_date }}</td>
-                                                <td>
-                                                    <div class="d-flex">
-                                                        <a href="{{ url_for('edit_payroll', id=payroll.id) }}" class="btn btn-primary shadow btn-xs sharp mr-1"><i class="fa fa-pencil"></i></a>
-                                                        <a href="{{ url_for('delete_payroll', id=payroll.id) }}" class="btn btn-danger shadow btn-xs sharp"><i class="fa fa-trash"></i></a>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-				</div>
             </div>
         </div>
         <!--**********************************
@@ -357,7 +353,7 @@
         ***********************************-->
         <div class="footer">
             <div class="copyright">
-                <p>Copyright © Designed &amp; Developed by <a href="../index.htm" target="_blank">DexignLab</a> 2020</p>
+                <p>Copyright © 2020 All Rights Reserved</p>
             </div>
         </div>
         <!--**********************************
@@ -382,19 +378,41 @@
         Scripts
     ***********************************-->
     <!-- Required vendors -->
-    <script src="vendor/global/global.min.js"></script>
-	<script src="vendor/bootstrap-select/dist/js/bootstrap-select.min.js"></script>
-    <script src="js/custom.min.js"></script>
-    <script src="js/dlabnav-init.js"></script>	
-
-    <!-- Datatable -->
-    <script src="vendor/datatables/js/jquery.dataTables.min.js"></script>
-    <script src="js/plugins-init/datatables.init.js"></script>
-
-	<!-- Svganimation scripts -->
-    <script src="vendor/svganimation/vivus.min.js"></script>
-    <script src="vendor/svganimation/svg.animation.js"></script>
-    <script src="js/styleSwitcher.js"></script>
+    <script src="{{ url_for('serve_vendor', filename='global/global.min.js') }}"></script>
+    <script src="{{ url_for('serve_js', filename='custom.min.js') }}"></script>
+    <script src="{{ url_for('serve_js', filename='deznav-init.js') }}"></script>
+    <script src="{{ url_for('serve_vendor', filename='chartist/js/chartist.min.js') }}"></script>
+    <script src="{{ url_for('serve_vendor', filename='chartist/js/chartist-plugin-tooltip.min.js') }}"></script>
+    <script src="{{ url_for('serve_vendor', filename='jqvmap/js/jquery.vmap.min.js') }}"></script>
+    <script src="{{ url_for('serve_vendor', filename='jqvmap/js/jquery.vmap.world.js') }}"></script>
+    <script src="{{ url_for('serve_vendor', filename='jqvmap/js/jquery.vmap.usa.js') }}"></script>
+    <script src="{{ url_for('serve_vendor', filename='summernote/js/summernote.min.js') }}"></script>
+    <script src="{{ url_for('serve_vendor', filename='bootstrap-select/dist/js/bootstrap-select.min.js') }}"></script>
+    <script src="{{ url_for('serve_js', filename='dashboard/dashboard-1.js') }}"></script>
 	
+	<!-- Chart sparkline plugin files -->
+    <script src="{{ url_for('serve_vendor', filename='jquery-sparkline/jquery.sparkline.min.js') }}"></script>
+	<script src="{{ url_for('serve_js', filename='plugins-init/sparkline-init.js') }}"></script>
+	
+	<!-- Chart Morris plugin files -->
+    <script src="{{ url_for('serve_vendor', filename='raphael/raphael.min.js') }}"></script>
+    <script src="{{ url_for('serve_vendor', filename='morris/morris.min.js') }}"></script> 
+	
+    <!-- Init file -->
+    <script src="{{ url_for('serve_js', filename='plugins-init/widgets-script-init.js') }}"></script>
+	
+	<!-- Demo scripts -->
+    <script src="{{ url_for('serve_js', filename='dashboard/dashboard.js') }}"></script>
+	
+	<!-- Summernote -->
+    <script src="{{ url_for('serve_vendor', filename='summernote/js/summernote.min.js') }}"></script>
+    <!-- Summernote init -->
+    <script src="{{ url_for('serve_js', filename='plugins-init/summernote-init.js') }}"></script>
+	
+	<!-- Svganimation scripts -->
+    <script src="{{ url_for('serve_vendor', filename='svganimation/vivus.min.js') }}"></script>
+    <script src="{{ url_for('serve_vendor', filename='svganimation/svg.animation.js') }}"></script>
+    <script src="{{ url_for('serve_js', filename='styleSwitcher.js') }}"></script>
+		
 </body>
 </html>
