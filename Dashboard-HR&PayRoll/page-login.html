@@ -9,7 +9,24 @@
     <!-- Favicon icon -->
     <link rel="icon" type="image/png" sizes="16x16" href="images/favicon.png">
     <link href="css/style.css" rel="stylesheet">
-
+    <style>
+        .alert {
+            margin-top: 1rem;
+            padding: 0.75rem 1.25rem;
+            border: 1px solid transparent;
+            border-radius: 0.25rem;
+        }
+        .alert-danger {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .alert-success {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+    </style>
 </head>
 
 <body class="h-100">
@@ -21,33 +38,36 @@
                         <div class="row no-gutters">
                             <div class="col-xl-12">
                                 <div class="auth-form">
-                                    <h4 class="text-center mb-4">Sign in your account</h4>
-                                    <form action="index.html">
+                                    <h4 class="text-center mb-4">Đăng nhập tài khoản</h4>
+                                    <form id="loginForm" onsubmit="return handleLogin(event)">
                                         <div class="form-group">
                                             <label><strong>Email</strong></label>
-                                            <input type="email" class="form-control" value="hello@example.com">
+                                            <input type="email" id="email" class="form-control" required>
+                                            <div class="invalid-feedback">Vui lòng nhập email hợp lệ</div>
                                         </div>
                                         <div class="form-group">
-                                            <label><strong>Password</strong></label>
-                                            <input type="password" class="form-control" value="Password">
+                                            <label><strong>Mật khẩu</strong></label>
+                                            <input type="password" id="password" class="form-control" required>
+                                            <div class="invalid-feedback">Vui lòng nhập mật khẩu</div>
                                         </div>
                                         <div class="form-row d-flex justify-content-between mt-4 mb-2">
                                             <div class="form-group">
                                                <div class="custom-control custom-checkbox ml-1">
-													<input type="checkbox" class="custom-control-input" id="basic_checkbox_1">
-													<label class="custom-control-label" for="basic_checkbox_1">Remember my preference</label>
-												</div>
+										<input type="checkbox" class="custom-control-input" id="rememberMe">
+										<label class="custom-control-label" for="rememberMe">Ghi nhớ đăng nhập</label>
+									</div>
                                             </div>
                                             <div class="form-group">
-                                                <a href="page-forgot-password.html">Forgot Password?</a>
+                                                <a href="page-forgot-password.html">Quên mật khẩu?</a>
                                             </div>
                                         </div>
+                                        <div id="loginMessage" class="alert" style="display: none;"></div>
                                         <div class="text-center">
-                                            <button type="submit" class="btn btn-primary btn-block">Sign me in</button>
+                                            <button type="submit" class="btn btn-primary btn-block">Đăng nhập</button>
                                         </div>
                                     </form>
                                     <div class="new-account mt-3">
-                                        <p>Don't have an account? <a class="text-primary" href="page-register.html">Sign up</a></p>
+                                        <p>Chưa có tài khoản? <a class="text-primary" href="page-register.html">Đăng ký</a></p>
                                     </div>
                                 </div>
                             </div>
@@ -58,7 +78,6 @@
         </div>
     </div>
 
-
     <!--**********************************
         Scripts
     ***********************************-->
@@ -67,7 +86,68 @@
 	<script src="vendor/bootstrap-select/dist/js/bootstrap-select.min.js"></script>
     <script src="js/custom.min.js"></script>
     <script src="js/dlabnav-init.js"></script>
+    <script>
+        // Kiểm tra xem có thông tin đăng nhập được lưu không
+        window.onload = function() {
+            const savedEmail = localStorage.getItem('userEmail');
+            const savedPassword = localStorage.getItem('userPassword');
+            if (savedEmail && savedPassword) {
+                document.getElementById('email').value = savedEmail;
+                document.getElementById('password').value = savedPassword;
+                document.getElementById('rememberMe').checked = true;
+            }
+        }
 
+        function handleLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const rememberMe = document.getElementById('rememberMe').checked;
+            const messageDiv = document.getElementById('loginMessage');
+
+            // Kiểm tra định dạng email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showMessage('Email không hợp lệ', 'danger');
+                return false;
+            }
+
+            // Kiểm tra độ dài mật khẩu
+            if (password.length < 6) {
+                showMessage('Mật khẩu phải có ít nhất 6 ký tự', 'danger');
+                return false;
+            }
+
+            // Demo credentials (trong thực tế nên kiểm tra với server)
+            if ((email === 'admin@example.com' && password === 'admin123') ||
+                (email === 'user@example.com' && password === 'user123')) {
+                if (rememberMe) {
+                    localStorage.setItem('userEmail', email);
+                    localStorage.setItem('userPassword', password);
+                } else {
+                    localStorage.removeItem('userEmail');
+                    localStorage.removeItem('userPassword');
+                }
+                
+                showMessage('Đăng nhập thành công!', 'success');
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1000);
+            } else {
+                showMessage('Email hoặc mật khẩu không chính xác', 'danger');
+            }
+
+            return false;
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('loginMessage');
+            messageDiv.className = `alert alert-${type}`;
+            messageDiv.textContent = message;
+            messageDiv.style.display = 'block';
+        }
+    </script>
 </body>
 
 </html>
