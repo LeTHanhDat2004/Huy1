@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template, send_from_directory, url_for
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
 from sqlalchemy import create_engine
 import pandas as pd
@@ -233,13 +234,26 @@ def get_mysql_connection():
 @app.route('/api/login', methods=['POST'])
 def api_login():
     data = request.get_json()
-    if not data or not data.get('username') or not data.get('password'):
-        return jsonify({'message': 'Could not verify'}), 401
-    
-    # In a real application, you would verify the username and password against your database
-    # For now, we'll just accept any username/password combination
-    access_token = create_access_token(identity=data['username'])
-    return jsonify({'access_token': access_token})
+    username = data.get('username')
+    password = data.get('password')
+
+    if not username or not password:
+        return jsonify({'message': 'Missing username or password'}), 400
+
+    try:
+        engine = get_sql_server_connection()
+        query = "SELECT PasswordHash FROM Users WHERE Username = ?"
+        with engine.connect() as conn:
+            result = conn.execute(query, username).fetchone()
+        
+        if result and check_password_hash(result[0], password):
+            access_token = create_access_token(identity=username)
+            return jsonify({'access_token': access_token})
+        else:
+            return jsonify({'message': 'Invalid credentials'}), 401
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 # Employee endpoints
 @app.route('/api/employees', methods=['GET'])
@@ -418,6 +432,31 @@ def check_out(employee_id):
         return jsonify({'message': 'Check-out successful'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+
+    if not username or not password:
+        return jsonify({'message': 'Missing username or password'}), 400
+
+    try:
+        engine = get_sql_server_connection()
+        hashed_password = generate_password_hash(password)
+        query = "INSERT INTO Users (Username, PasswordHash) VALUES (?, ?)"
+        with engine.connect() as conn:
+            conn.execute(query, username, hashed_password)
+        return jsonify({'message': 'User registered successfully'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+@app.route('/api/user-info', methods=['GET'])
+@jwt_required()
+def user_info():
+    current_user = get_jwt_identity()
+    return jsonify({'logged_in_as': current_user})
+
 
 if __name__ == '__main__':
     app.run(debug=True) 

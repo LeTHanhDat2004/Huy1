@@ -3,8 +3,8 @@ from datetime import timedelta
 
 # Database Configurations
 SQL_SERVER_CONFIG = {
-    'server': 'THUTHANHLICH',
-    'database': 'HUMAN_BAITAP',
+    'server': 'KALI0CHUA',
+    'database': 'HUMAN',
     'username': '',  # Windows Authentication
     'password': '',  # Windows Authentication
     'driver': 'ODBC Driver 17 for SQL Server'
@@ -13,14 +13,14 @@ SQL_SERVER_CONFIG = {
 MYSQL_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'Phuoc123',
-    'database': 'Payroll_baitap',
+    'password': 'Thach4102004!',
+    'database': 'Prayroll_baitap',
     'port': 3306
 }
 
 # Connection Strings
-SQL_SERVER_CONN = "mssql+pyodbc://@THUTHANHLICH/HUMAN_BAITAP?driver=ODBC+Driver+17+for+SQL+Server"
-MYSQL_CONN = "mysql+mysqlconnector://root:Phuoc123@localhost:3306/Payroll_baitap"
+SQL_SERVER_CONN = "mssql+pyodbc://@KALI0CHUA/HUMAN?driver=ODBC+Driver+17+for+SQL+Server"
+MYSQL_CONN = "mysql+mysqlconnector://root:Thach4102004!@localhost:3306/Payroll_baitap"
 
 # JWT Configuration
 JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'your-secret-key-here')
