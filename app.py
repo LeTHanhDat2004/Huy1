@@ -304,15 +304,15 @@ def api_add_employee():
         engine_mysql = get_mysql_connection()
         query_mysql = """
             INSERT INTO employees (EmployeeID, FullName, DepartmentID, PositionID, Status,Email,DateOfBirth,HireDate,Gender,PhoneNumber)
-            VALUES (%s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         with engine_mysql.connect() as conn:
             conn.execute(query_mysql, [(
-    employee_id, data['FullName'], data['DepartmentID'], 
-    data['PositionID'], data['Status'], data['Email'],
-    data['DateOfBirth'], data['HireDate'], data['Gender'],
-    data['PhoneNumber']
-)])
+                employee_id, data['FullName'], data['DepartmentID'], 
+                data['PositionID'], data['Status'], data['Email'],
+                data['DateOfBirth'], data['HireDate'], data['Gender'],
+                data['PhoneNumber']
+            )])
         
         return jsonify({'message': 'Employee added successfully', 'employee_id': employee_id}), 201
         
@@ -368,6 +368,7 @@ def delete_employee(employee_id):
         engine_sql = get_sql_server_connection()
         with engine_sql.connect() as conn:
             conn.execute("DELETE FROM Employees WHERE EmployeeID = ?", (employee_id,))
+
         
         # Delete from MySQL payroll
         engine_mysql = get_mysql_connection()
