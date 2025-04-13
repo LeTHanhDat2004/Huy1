@@ -12,7 +12,7 @@ import os
 import traceback
 
 app = Flask(__name__, 
-            static_folder='Dashboard-HR&PayRoll',
+            static_folder='DASHBOAR',
             template_folder='templates')
 app.config['JWT_SECRET_KEY'] = JWT_SECRET_KEY
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = JWT_ACCESS_TOKEN_EXPIRES
