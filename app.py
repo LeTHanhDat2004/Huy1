@@ -9,6 +9,7 @@ from datetime import datetime
 import pyodbc
 import mysql.connector
 import os
+import traceback
 
 app = Flask(__name__, 
             static_folder='Dashboard-HR&PayRoll',
@@ -283,7 +284,7 @@ def get_payroll():
 def api_add_employee():
     try:
         data = request.get_json()
-        
+        print("🔎 Dữ liệu nhận được:", data)  # <--- THÊM DÒNG NÀY
         # Add to SQL Server
         engine_sql = get_sql_server_connection()
         query_sql = """
@@ -302,7 +303,7 @@ def api_add_employee():
         # Add to MySQL payroll
         engine_mysql = get_mysql_connection()
         query_mysql = """
-            INSERT INTO employees (EmployeeID, FullName, DepartmentID, PositionID, Status)
+            INSERT INTO employees (EmployeeID, FullName, DepartmentID, PositionID, Status,Email,DateOfBirth,HireDate,Gender,PhoneNumber)
             VALUES (%s, %s, %s, %s, %s)
         """
         with engine_mysql.connect() as conn:
@@ -314,6 +315,7 @@ def api_add_employee():
         return jsonify({'message': 'Employee added successfully', 'employee_id': employee_id}), 201
         
     except Exception as e:
+        traceback.print_exc()  # log lỗi đầy đủ ra console
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/update-employee/<int:employee_id>', methods=['PUT'])

@@ -24,6 +24,44 @@
 </head>
 
 <body>
+    <!-- Bên trong add-employee.html -->
+<h2>Thêm Nhân Viên Mới</h2>
+
+<form id="addEmployeeForm">
+  <input type="text" id="fullName" placeholder="Họ tên" required><br>
+
+  <label>Ngày sinh: <input type="date" id="dateOfBirth" required></label><br>
+
+  <label><input type="radio" name="gender" value="Male" checked> Nam</label>
+  <label><input type="radio" name="gender" value="Female"> Nữ</label><br>
+
+  <input type="text" id="phoneNumber" placeholder="Số điện thoại" required><br>
+  <input type="email" id="email" placeholder="Email" required><br>
+  <input type="date" id="hireDate" required><br>
+
+  <label>Phòng ban:
+    <select id="department">
+      {% for dept in departments %}
+        <option value="{{ dept.id }}">{{ dept.name }}</option>
+      {% endfor %}
+    </select>
+  </label><br>
+
+  <label>Chức vụ:
+    <select id="position">
+      {% for pos in positions %}
+        <option value="{{ pos.id }}">{{ pos.name }}</option>
+      {% endfor %}
+    </select>
+  </label><br>
+
+  <select id="status">
+    <option value="Active">Đang làm</option>
+    <option value="Inactive">Nghỉ việc</option>
+  </select><br>
+
+  <button type="submit">➕ Thêm Nhân Viên</button>
+</form>
 
     <!--*******************
         Preloader start
@@ -182,7 +220,7 @@
             <div class="dlabnav-scroll">
                 <ul class="metismenu" id="menu">
                     <li class="nav-label first">Main Menu</li>
-                    <li><a href="index.html">
+                    <li><a href="/">
 							<i class="la la-home"></i>
 							<span class="nav-text">Dashboard</span>
 						</a>
@@ -437,48 +475,48 @@
     <script src="js/plugins-init/pickadate-init.js"></script>
 
     <script>
-    document.getElementById('addEmployeeForm').addEventListener('submit', function(e) {
-        e.preventDefault();
+        document.addEventListener("DOMContentLoaded", function () {
+          const form = document.getElementById("addEmployeeForm");
         
-        // Get form data
-        const formData = new FormData(this);
-        const data = {};
-        formData.forEach((value, key) => data[key] = value);
+          form.addEventListener("submit", async function (e) {
+            e.preventDefault(); // 🛑 chặn form tự động gửi GET
         
-        // Get token from localStorage
-        const token = localStorage.getItem('token');
+            const token = localStorage.getItem("access_token"); // lấy token từ login
         
-        if (!token) {
-            alert('Please login first');
-            window.location.href = '/login';
-            return;
-        }
-
-        // Send request to API
-        fetch('/api/add-employee', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
-            },
-            body: JSON.stringify(data)
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Failed to add employee');
+            const data = {
+              FullName: document.getElementById("fullName").value,
+              Email: document.getElementById("email").value,
+              PhoneNumber: document.getElementById("phoneNumber").value,
+              DepartmentID: parseInt(document.getElementById("department").value),
+              PositionID: parseInt(document.getElementById("position").value),
+              DateOfBirth: document.getElementById("dob").value,
+              HireDate: document.getElementById("hireDate").value,
+              Gender: document.querySelector('input[name="gender"]:checked').value,
+              Status: document.getElementById("status").value
+            };
+        
+            const res = await fetch("/api/add-employee", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token
+              },
+              body: JSON.stringify(data),
+              cache: "no-store"
+            });
+        
+            const result = await res.json();
+            if (res.ok) {
+              alert("✅ Nhân viên đã được thêm!");
+              form.reset();
+            } else {
+              alert("❌ Lỗi: " + (result.error || result.message));
+              console.error(result);
             }
-            return response.json();
-        })
-        .then(data => {
-            alert('Employee added successfully');
-            window.location.href = '/all-employees';
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Failed to add employee. Please try again.');
+          });
         });
-    });
-    </script>
-
+        </script>
+        
+        
 </body>
 </html>

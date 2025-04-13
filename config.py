@@ -19,7 +19,8 @@ MYSQL_CONFIG = {
 }
 
 # Connection Strings
-SQL_SERVER_CONN = "mssql+pyodbc://@KALI0CHUA/HUMAN?driver=ODBC+Driver+17+for+SQL+Server"
+SQL_SERVER_CONN = "mssql+pyodbc://@KALI0CHUA/HUMAN?driver=ODBC+Driver+17+for+SQL+Server;trusted_connection=yes"
+
 MYSQL_CONN = "mysql+mysqlconnector://root:Thach4102004!@localhost:3306/Payroll_baitap"
 
 # JWT Configuration
