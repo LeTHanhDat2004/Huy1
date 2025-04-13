@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>HR Management System - Login</title>
+    <!-- Favicon icon -->
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('serve_images', filename='favicon.png') }}">
+    <link rel="stylesheet" href="{{ url_for('serve_vendor', filename='bootstrap-select/dist/css/bootstrap-select.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('serve_css', filename='style.css') }}">
+</head>
+<body>
+    <div class="authincation h-100">
+        <div class="container h-100">
+            <div class="row justify-content-center h-100 align-items-center">
+                <div class="col-md-6">
+                    <div class="authincation-content">
+                        <div class="row no-gutters">
+                            <div class="col-xl-12">
+                                <div class="auth-form">
+                                    <h4 class="text-center mb-4">Sign in to HR Management System</h4>
+                                    <form id="loginForm">
+                                        <div class="form-group">
+                                            <label class="mb-1"><strong>Username</strong></label>
+                                            <input type="text" class="form-control" name="username" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="mb-1"><strong>Password</strong></label>
+                                            <input type="password" class="form-control" name="password" required>
+                                        </div>
+                                        <div class="form-row d-flex justify-content-between mt-4 mb-2">
+                                            <div class="form-group">
+                                                <div class="custom-control custom-checkbox ml-1">
+                                                    <input type="checkbox" class="custom-control-input" id="basic_checkbox_1">
+                                                    <label class="custom-control-label" for="basic_checkbox_1">Remember me</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="text-center">
+                                            <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const data = {};
+        formData.forEach((value, key) => data[key] = value);
+        
+        fetch('/api/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Login failed');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.access_token) {
+                localStorage.setItem('token', data.access_token);
+                window.location.href = '/all-employees';
+            } else {
+                alert(data.message || 'Login failed');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Login failed. Please try again.');
+        });
+    });
+    </script>
+    <script>
+        async function handleLogin(event) {
+          event.preventDefault(); // Chặn reload form
+      
+          const username = document.getElementById('username').value;
+          const password = document.getElementById('password').value;
+      
+          const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+          });
+      
+          const data = await res.json();
+          
+          if (res.ok) {
+            localStorage.setItem('access_token', data.access_token);
+            alert('Đăng nhập thành công!');
+            window.location.href = '/check-attendance'; // chuyển đến trang check-in
+          } else {
+            alert('Lỗi: ' + (data.message || data.error));
+          }
+        }
+        localStorage.setItem('access_token', data.access_token);
+      </script>
+      
+</body>
+</html> 
