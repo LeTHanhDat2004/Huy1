@@ -307,12 +307,12 @@ def api_add_employee():
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         with engine_mysql.connect() as conn:
-            conn.execute(query_mysql, [(
+            conn.execute(query_mysql, (
                 employee_id, data['FullName'], data['DepartmentID'], 
                 data['PositionID'], data['Status'], data['Email'],
                 data['DateOfBirth'], data['HireDate'], data['Gender'],
                 data['PhoneNumber']
-            )])
+            ))
         
         return jsonify({'message': 'Employee added successfully', 'employee_id': employee_id}), 201
         
@@ -373,7 +373,7 @@ def delete_employee(employee_id):
         # Delete from MySQL payroll
         engine_mysql = get_mysql_connection()
         with engine_mysql.connect() as conn:
-            conn.execute("DELETE FROM employees WHERE EmployeeID = %s", employee_id)
+            conn.execute("DELETE FROM employees WHERE EmployeeID = %s", (employee_id,))
         
         return jsonify({'message': 'Employee deleted successfully'})
         
