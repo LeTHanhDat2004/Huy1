@@ -59,5 +59,27 @@
     <script src="./vendor/bootstrap-select/dist/js/bootstrap-select.min.js"></script>
     <script src="./js/custom.min.js"></script>
     <script src="./js/deznav-init.js"></script>
+    <script>
+        async function handleRegister(event) {
+          event.preventDefault();
+    
+          const username = document.getElementById('username').value;
+          const password = document.getElementById('password').value;
+    
+          const res = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+          });
+    
+          const data = await res.json();
+          document.getElementById('message').innerText = data.message || data.error;
+    
+          if (res.ok) {
+            alert("Đăng ký thành công!");
+            window.location.href = '/login';  // chuyển đến login sau khi đăng ký
+          }
+        }
+      </script>
 </body>
 </html>
