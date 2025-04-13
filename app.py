@@ -254,7 +254,7 @@ def api_login():
             return jsonify({'message': 'Invalid credentials'}), 401
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
+    localStorage.setItem('access_token', data.access_token);
 
 # Employee endpoints
 @app.route('/api/employees', methods=['GET'])
@@ -459,6 +459,9 @@ def user_info():
     current_user = get_jwt_identity()
     return jsonify({'logged_in_as': current_user})
 
+@app.route('/check-attendance')
+def check_attendance():
+    return render_template('check-attendance.html')
 
 if __name__ == '__main__':
     app.run(debug=True) 
