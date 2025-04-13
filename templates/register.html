@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Register</title>
+</head>
+<body>
+  <h2>Register New User</h2>
+  <form onsubmit="handleRegister(event)">
+    <label>Username:</label><br>
+    <input type="text" id="username" required><br><br>
+
+    <label>Password:</label><br>
+    <input type="password" id="password" required><br><br>
+
+    <button type="submit">Register</button>
+  </form>
+
+  <div id="message" style="margin-top: 10px;"></div>
+
+  <script>
+    async function handleRegister(event) {
+      event.preventDefault();
+
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await res.json();
+      document.getElementById('message').innerText = data.message || data.error;
+
+      if (res.ok) {
+        alert("Đăng ký thành công!");
+        window.location.href = '/login';  // chuyển đến login sau khi đăng ký
+      }
+    }
+  </script>
+</body>
+</html>

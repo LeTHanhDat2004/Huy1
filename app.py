@@ -245,7 +245,7 @@ def api_login():
         engine = get_sql_server_connection()
         query = "SELECT PasswordHash FROM Users WHERE Username = ?"
         with engine.connect() as conn:
-            result = conn.execute(query, username).fetchone()
+            result = conn.execute(query, (username,)).fetchone()
         
         if result and check_password_hash(result[0], password):
             access_token = create_access_token(identity=username)
@@ -307,10 +307,12 @@ def api_add_employee():
             VALUES (%s, %s, %s, %s, %s)
         """
         with engine_mysql.connect() as conn:
-            conn.execute(query_mysql, (
-                employee_id, data['FullName'], data['DepartmentID'], 
-                data['PositionID'], data['Status']
-            ))
+            conn.execute(query_mysql, [(
+    employee_id, data['FullName'], data['DepartmentID'], 
+    data['PositionID'], data['Status'], data['Email'],
+    data['DateOfBirth'], data['HireDate'], data['Gender'],
+    data['PhoneNumber']
+)])
         
         return jsonify({'message': 'Employee added successfully', 'employee_id': employee_id}), 201
         
@@ -365,7 +367,7 @@ def delete_employee(employee_id):
         # Delete from SQL Server
         engine_sql = get_sql_server_connection()
         with engine_sql.connect() as conn:
-            conn.execute("DELETE FROM Employees WHERE EmployeeID = ?", employee_id)
+            conn.execute("DELETE FROM Employees WHERE EmployeeID = ?", (employee_id,))
         
         # Delete from MySQL payroll
         engine_mysql = get_mysql_connection()
@@ -411,7 +413,8 @@ def check_in():
             VALUES (?, GETDATE(), GETDATE(), 'Present')
         """
         with engine.connect() as conn:
-            conn.execute(query, employee_id)
+            conn.execute(query, (employee_id,))
+
         
         return jsonify({'message': 'Check-in successful'}), 201
     except Exception as e:
@@ -429,7 +432,8 @@ def check_out(employee_id):
             AND CheckOut IS NULL
         """
         with engine.connect() as conn:
-            conn.execute(query, employee_id)
+            conn.execute(query, (employee_id,))
+
         
         return jsonify({'message': 'Check-out successful'})
     except Exception as e:
@@ -449,7 +453,7 @@ def api_register():
         hashed_password = generate_password_hash(password)
         query = "INSERT INTO Users (Username, PasswordHash) VALUES (?, ?)"
         with engine.connect() as conn:
-            conn.execute(query, username, hashed_password)
+            conn.execute(query, (username, hashed_password))
         return jsonify({'message': 'User registered successfully'}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
