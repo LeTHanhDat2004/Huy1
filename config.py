@@ -14,7 +14,7 @@ MYSQL_CONFIG = {
     'host': 'localhost',
     'user': 'root',
     'password': 'Thach4102004!',
-    'database': 'Prayroll_baitap',
+    'database': 'Payroll_baitap',
     'port': 3306
 }
 
