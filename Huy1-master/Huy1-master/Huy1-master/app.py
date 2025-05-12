@@ -15,6 +15,7 @@ import mysql.connector
 import os
 import traceback
 from functools import wraps
+from flask_wtf.csrf import CSRFProtect
 
 def role_required(allowed_roles):
     def decorator(fn):
@@ -36,6 +37,7 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = JWT_ACCESS_TOKEN_EXPIRES
 app.secret_key = 'your-very-secret-key'
 CORS(app)  # Enable CORS for all routes
 jwt = JWTManager(app)
+csrf = CSRFProtect(app)  # Thêm dòng này để khởi tạo CSRF protection
 
 db = pymysql.connect(
     host='localhost',
@@ -321,9 +323,58 @@ def permissions():
 def access_logs():
     return render_template('access-logs.html')
 
-@app.route('/register')
+@app.route('/page-register', methods=['GET', 'POST']) # Đã thêm methods=['GET', 'POST']
+@app.route('/page-register.html', methods=['GET', 'POST']) # Đã thêm methods=['GET', 'POST']
 def register():
-    return render_template('register.html')
+    if request.method == 'POST':
+        username = request.form.get('username')
+        fullname = request.form.get('fullname')
+        email = request.form.get('email')
+        password = request.form.get('password')
+
+        # Kiểm tra dữ liệu đầu vào cơ bản
+        if not username or not fullname or not email or not password:
+            return jsonify({'message': 'Vui lòng điền đầy đủ tất cả các trường thông tin.'}), 400
+
+        # Kiểm tra định dạng email cơ bản
+        if "@" not in email or "." not in email.split('@')[-1]:
+            return jsonify({'message': 'Địa chỉ email không hợp lệ.'}), 400
+        
+        # Kiểm tra độ dài mật khẩu (nên có cả ở server)
+        if len(password) < 8:
+            return jsonify({'message': 'Mật khẩu phải có ít nhất 8 ký tự.'}), 400
+
+        try:
+            with db.cursor() as cursor:
+                # Kiểm tra username đã tồn tại chưa
+                cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+                if cursor.fetchone():
+                    return jsonify({'message': 'Tên đăng nhập này đã tồn tại. Vui lòng chọn tên khác.'}), 409 # 409 Conflict
+
+                # Kiểm tra email đã tồn tại chưa
+                cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+                if cursor.fetchone():
+                    return jsonify({'message': 'Địa chỉ email này đã được sử dụng. Vui lòng sử dụng email khác.'}), 409 # 409 Conflict
+                    
+                # Mã hóa mật khẩu
+                hashed_password = generate_password_hash(password)
+                
+                # Lưu vào database
+                cursor.execute("""
+                    INSERT INTO users (username, fullname, email, password_hash)
+                    VALUES (%s, %s, %s, %s)
+                """, (username, fullname, email, hashed_password))
+                db.commit()
+                return jsonify({'message': 'Đăng ký thành công! Bạn sẽ được chuyển đến trang đăng nhập.'}), 201 # 201 Created
+        except pymysql.Error as db_err: # Bắt lỗi cụ thể của PyMySQL nếu có thể
+            print(f"Lỗi cơ sở dữ liệu khi đăng ký: {str(db_err)}")
+            return jsonify({'message': 'Đăng ký thất bại do lỗi cơ sở dữ liệu. Vui lòng thử lại sau.'}), 500
+        except Exception as e:
+            print(f"Lỗi không xác định khi đăng ký: {str(e)}")
+            return jsonify({'message': 'Đăng ký thất bại do lỗi máy chủ. Vui lòng thử lại sau.'}), 500
+            
+    # Đối với GET request, chỉ render template
+    return render_template('page-register.html')
 
 from flask import request, redirect, url_for, render_template, session, flash
 from werkzeug.security import check_password_hash
@@ -343,17 +394,17 @@ def login():
                 session['user'] = username
                 session['role'] = 'admin'
                 return redirect(url_for('index'))
-
+                
         # Kiểm tra trong bảng user_employee
         with db.cursor() as cursor:
-            cursor.execute("SELECT * FROM user_employee WHERE user=%s AND pass=%s", (username, password))
+            cursor.execute("SELECT * FROM user_employee WHERE username=%s AND password=%s", (username, password))
             user = cursor.fetchone()
             if user:
                 session['user'] = username
                 session['role'] = 'employee'
                 return redirect(url_for('index'))
 
-        flash('Sai tài khoản hoặc mật khẩu!')
+        flash('Sai tên đăng nhập hoặc mật khẩu!')
         return render_template('page-login.html')
 
     return render_template('page-login.html')
@@ -594,7 +645,7 @@ def update_employee():
 
 
 # Thêm SECRET_KEY vào config
-app.config['SECRET_KEY'] = 'your-secret-key-here'
+app.config['SECRET_KEY'] = 'Tritran'
 
 def generate_token(user_id, role):
     token = jwt.encode({
@@ -732,3 +783,7 @@ def delete_employee(employee_id):
 
 if __name__ == '__main__':
     app.run(debug=True)
+from flask_wtf.csrf import CSRFProtect
+
+csrf = CSRFProtect()
+csrf.init_app(app)

@@ -72,17 +72,54 @@ async function fetchWithAuth(url, options = {}) {
 }
 
 // Middleware kiểm tra đăng nhập
+// Thêm hàm kiểm tra role
+function hasRole(role) {
+    const userRole = localStorage.getItem('user_role');
+    return userRole === role;
+}
+
+// Thêm hàm cập nhật UI theo role
+function updateUIByRole() {
+    const userRole = localStorage.getItem('user_role');
+    
+    // Ẩn tất cả các section trước
+    document.querySelectorAll('.admin-section, .hr-section, .employee-section, .payroll-section')
+        .forEach(section => section.style.display = 'none');
+    
+    // Hiển thị section theo role
+    switch(userRole) {
+        case 'admin':
+            document.querySelectorAll('.admin-section').forEach(section => section.style.display = 'block');
+            break;
+        case 'hr_manager':
+            document.querySelectorAll('.hr-section').forEach(section => section.style.display = 'block');
+            break;
+        case 'employee':
+            document.querySelectorAll('.employee-section').forEach(section => section.style.display = 'block');
+            break;
+        case 'payroll_manager':
+            document.querySelectorAll('.payroll-section').forEach(section => section.style.display = 'block');
+            break;
+    }
+}
+
+// Cập nhật checkAuth để gọi updateUIByRole
 function checkAuth() {
     if (!isLoggedIn()) {
         window.location.href = '/login';
         return false;
     }
-    return true;
+    if (isLoggedIn()) {
+        updateUIByRole();
+        return true;
+    }
+    return false;
 }
 
 // Thêm vào các trang cần bảo vệ
 document.addEventListener('DOMContentLoaded', function() {
     if (!checkAuth()) return;
+    updateUIByRole();
     // Code của trang
 });
 
