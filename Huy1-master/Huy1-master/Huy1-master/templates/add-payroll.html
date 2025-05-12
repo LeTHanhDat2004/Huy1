@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add Payroll</title>
+</head>
+<body>
+    <h2>Add Payroll</h2>
+    <form method="post">
+        <label>Employee ID:</label><input type="text" name="EmployeeID" required><br>
+        <label>Department ID:</label><input type="text" name="DepartmentID" required><br>
+        <label>Fullname:</label><input type="text" name="Fullname" required><br>
+        <label>Position ID:</label><input type="text" name="PositionID" required><br>
+        <label>Total:</label><input type="number" name="Total" required><br>
+        <button type="submit">Add</button>
+    </form>
+    <a href="{{ url_for('payroll_details') }}">Back to Payroll List</a>
+</body>
+</html> 

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Check In/Out</title>
+  <meta charset="UTF-8">
+</head>
+<body>
+  <h2>Attendance Check</h2>
+  <label for="employeeId">Employee ID:</label>
+  <input type="number" id="employeeId" placeholder="Enter your ID" required />
+  <br><br>
+  <button onclick="checkIn()">Check In</button>
+  <button onclick="checkOut()">Check Out</button>
+
+  <div id="message" style="margin-top: 15px; color: green;"></div>
+
+  <script>
+    const API_BASE = 'http://localhost:5000/api';
+    const token = localStorage.getItem('access_token'); // token JWT sau khi login
+
+    async function checkIn() {
+      const employeeId = document.getElementById('employeeId').value;
+      if (!employeeId || !token) return alert("Missing Employee ID or Token");
+
+      const res = await fetch(`${API_BASE}/attendance/check-in`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ employee_id: employeeId })
+      });
+
+      const data = await res.json();
+      document.getElementById('message').innerText = data.message || data.error;
+    }
+
+    async function checkOut() {
+      const employeeId = document.getElementById('employeeId').value;
+      if (!employeeId || !token) return alert("Missing Employee ID or Token");
+
+      const res = await fetch(`${API_BASE}/attendance/check-out/${employeeId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
+      document.getElementById('message').innerText = data.message || data.error;
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" class="h-100">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Register - Education Admin Dashboard</title>
+    <!-- Favicon icon -->
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/favicon.png') }}">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <style>
+        .password-strength { margin-top: 5px; }
+        .loading { display: none; }
+        .loading.active { display: inline-block; }
+        .alert { display: none; }
+        .alert.show { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body class="h-100">
+    <div class="authincation h-100">
+        <div class="container h-100">
+            <div class="row justify-content-center h-100 align-items-center">
+                <div class="col-md-6">
+                    <div class="authincation-content">
+                        <div class="row no-gutters">
+                            <div class="col-xl-12">
+                                <div class="auth-form">
+                                    <h4 class="text-center mb-4">Tạo tài khoản mới</h4>
+                                    <div id="message" class="alert"></div>
+                                    <form id="registerForm" onsubmit="handleRegister(event)">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <div class="form-group">
+                                            <label class="mb-1"><strong>Họ và tên</strong></label>
+                                            <input type="text" class="form-control" id="fullName" name="fullName" 
+                                                   placeholder="Nhập họ và tên" required minlength="2">
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="mb-1"><strong>Email</strong></label>
+                                            <input type="email" class="form-control" id="email" name="email" 
+                                                   placeholder="hello@example.com" required 
+                                                   pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$">
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="mb-1"><strong>Mật khẩu</strong></label>
+                                            <input type="password" class="form-control" id="password" name="password" 
+                                                   placeholder="Mật khẩu" required minlength="8" 
+                                                   onkeyup="checkPasswordStrength(this.value)">
+                                            <div id="passwordStrength" class="password-strength"></div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="mb-1"><strong>Xác nhận mật khẩu</strong></label>
+                                            <input type="password" class="form-control" id="confirmPassword" 
+                                                   placeholder="Xác nhận mật khẩu" required>
+                                        </div>
+                                        <div class="text-center mt-4">
+                                            <button type="submit" id="submitBtn" class="btn btn-primary btn-block">
+                                                <span class="loading" id="loadingSpinner">
+                                                    <i class="fa fa-spinner fa-spin"></i>
+                                                </span>
+                                                <span>Đăng ký</span>
+                                            </button>
+                                        </div>
+                                    </form>
+                                    <div class="new-account mt-3">
+                                        <p>Đã có tài khoản? <a class="text-primary" href="/login">Đăng nhập</a></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Required vendors -->
+    <script src="{{ url_for('static', filename='vendor/global/global.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/bootstrap-select/dist/js/bootstrap-select.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/custom.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/deznav-init.js') }}"></script>
+    <script>
+        function showMessage(message, type = 'danger') {
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = `alert alert-${type} show`;
+            messageDiv.innerText = message;
+        }
+
+        function checkPasswordStrength(password) {
+            const strengthDiv = document.getElementById('passwordStrength');
+            const strength = {
+                0: "Rất yếu",
+                1: "Yếu",
+                2: "Trung bình",
+                3: "Mạnh",
+                4: "Rất mạnh"
+            };
+
+            let score = 0;
+            if (password.length >= 8) score++;
+            if (password.match(/[a-z]/) && password.match(/[A-Z]/)) score++;
+            if (password.match(/\d/)) score++;
+            if (password.match(/[^a-zA-Z\d]/)) score++;
+
+            strengthDiv.className = `password-strength text-${score > 2 ? 'success' : 'danger'}`;
+            strengthDiv.textContent = `Độ mạnh mật khẩu: ${strength[score]}`;
+        }
+
+        async function handleRegister(event) {
+            event.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const form = document.getElementById('registerForm');
+            
+            // Validation
+            const fullName = document.getElementById('fullName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (!fullName || !email || !password || !confirmPassword) {
+                showMessage('Vui lòng điền đầy đủ thông tin');
+                return;
+            }
+
+            if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+                showMessage('Email không hợp lệ');
+                return;
+            }
+
+            if (password.length < 8) {
+                showMessage('Mật khẩu phải có ít nhất 8 ký tự');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showMessage('Mật khẩu xác nhận không khớp');
+                return;
+            }
+
+            // Disable form và hiện loading
+            submitBtn.disabled = true;
+            loadingSpinner.classList.add('active');
+            
+            try {
+                const res = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': form.querySelector('[name="csrf_token"]').value
+                    },
+                    body: JSON.stringify({ fullName, email, password })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    showMessage('Đăng ký thành công! Đang chuyển hướng...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                } else {
+                    showMessage(data.message || 'Đăng ký thất bại');
+                }
+            } catch (error) {
+                showMessage('Có lỗi xảy ra, vui lòng thử lại sau');
+            } finally {
+                submitBtn.disabled = false;
+                loadingSpinner.classList.remove('active');
+            }
+        }
+    </script>
+</body>
+</html>
