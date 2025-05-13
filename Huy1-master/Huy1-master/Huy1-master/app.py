@@ -360,8 +360,9 @@ def register():
                 hashed_password = generate_password_hash(password)
                 
                 # Lưu vào database
+                # Trong route register, thay đổi câu lệnh SQL:
                 cursor.execute("""
-                    INSERT INTO users (username, fullname, email, password_hash)
+                    INSERT INTO users (username, fullname, email, password)
                     VALUES (%s, %s, %s, %s)
                 """, (username, fullname, email, hashed_password))
                 db.commit()
@@ -379,7 +380,7 @@ def register():
 from flask import request, redirect, url_for, render_template, session, flash
 from werkzeug.security import check_password_hash
 
-
+@app.route('/page-login', methods=['GET', 'POST'])
 @app.route('/page-login.html', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -388,18 +389,18 @@ def login():
 
         # Kiểm tra trong bảng admin
         with db.cursor() as cursor:
-            cursor.execute("SELECT * FROM admin WHERE user=%s AND pass=%s", (username, password))
+            cursor.execute("SELECT * FROM admin WHERE user=%s", (username,))
             admin = cursor.fetchone()
-            if admin:
+            if admin and check_password_hash(admin['pass'], password):
                 session['user'] = username
                 session['role'] = 'admin'
                 return redirect(url_for('index'))
                 
         # Kiểm tra trong bảng user_employee
         with db.cursor() as cursor:
-            cursor.execute("SELECT * FROM user_employee WHERE username=%s AND password=%s", (username, password))
+            cursor.execute("SELECT * FROM user_employee WHERE user=%s", (username,))  # Thay 'username' thành 'user'
             user = cursor.fetchone()
-            if user:
+            if user and check_password_hash(user['password'], password):
                 session['user'] = username
                 session['role'] = 'employee'
                 return redirect(url_for('index'))
