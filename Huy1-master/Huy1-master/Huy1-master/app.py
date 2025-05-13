@@ -323,8 +323,8 @@ def permissions():
 def access_logs():
     return render_template('access-logs.html')
 
-@app.route('/page-register', methods=['GET', 'POST']) # Đã thêm methods=['GET', 'POST']
-@app.route('/page-register.html', methods=['GET', 'POST']) # Đã thêm methods=['GET', 'POST']
+@app.route('/page-register', methods=['GET', 'POST'])
+@app.route('/page-register.html', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         username = request.form.get('username')
@@ -340,41 +340,43 @@ def register():
         if "@" not in email or "." not in email.split('@')[-1]:
             return jsonify({'message': 'Địa chỉ email không hợp lệ.'}), 400
         
-        # Kiểm tra độ dài mật khẩu (nên có cả ở server)
+        # Kiểm tra độ dài mật khẩu
         if len(password) < 8:
             return jsonify({'message': 'Mật khẩu phải có ít nhất 8 ký tự.'}), 400
 
         try:
             with db.cursor() as cursor:
-                # Kiểm tra username đã tồn tại chưa
-                cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+                # Kiểm tra username đã tồn tại chưa trong user_employee
+                cursor.execute("SELECT * FROM user_employee WHERE user = %s", (username,))
                 if cursor.fetchone():
-                    return jsonify({'message': 'Tên đăng nhập này đã tồn tại. Vui lòng chọn tên khác.'}), 409 # 409 Conflict
+                    return jsonify({'message': 'Tên đăng nhập này đã tồn tại. Vui lòng chọn tên khác.'}), 409
 
-                # Kiểm tra email đã tồn tại chưa
-                cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
+                # Kiểm tra email đã tồn tại chưa trong user_employee
+                cursor.execute("SELECT * FROM user_employee WHERE email = %s", (email,))
                 if cursor.fetchone():
-                    return jsonify({'message': 'Địa chỉ email này đã được sử dụng. Vui lòng sử dụng email khác.'}), 409 # 409 Conflict
+                    return jsonify({'message': 'Địa chỉ email này đã được sử dụng. Vui lòng sử dụng email khác.'}), 409
                     
                 # Mã hóa mật khẩu
                 hashed_password = generate_password_hash(password)
                 
-                # Lưu vào database
-                # Trong route register, thay đổi câu lệnh SQL:
+                # Lưu vào database user_employee
                 cursor.execute("""
-                    INSERT INTO users (username, fullname, email, password)
+                    INSERT INTO user_employee (user, fullname, email, password)
                     VALUES (%s, %s, %s, %s)
                 """, (username, fullname, email, hashed_password))
                 db.commit()
-                return jsonify({'message': 'Đăng ký thành công! Bạn sẽ được chuyển đến trang đăng nhập.'}), 201 # 201 Created
-        except pymysql.Error as db_err: # Bắt lỗi cụ thể của PyMySQL nếu có thể
-            print(f"Lỗi cơ sở dữ liệu khi đăng ký: {str(db_err)}")
-            return jsonify({'message': 'Đăng ký thất bại do lỗi cơ sở dữ liệu. Vui lòng thử lại sau.'}), 500
+                return jsonify({
+                    'success': True,
+                    'message': 'Đăng ký thành công! Bạn sẽ được chuyển đến trang đăng nhập.',
+                    'redirect': url_for('page-login.html')
+                }), 201
         except Exception as e:
-            print(f"Lỗi không xác định khi đăng ký: {str(e)}")
-            return jsonify({'message': 'Đăng ký thất bại do lỗi máy chủ. Vui lòng thử lại sau.'}), 500
+            print(f"Lỗi khi đăng ký: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'Đăng ký thất bại. Vui lòng thử lại sau.'
+            }), 500
             
-    # Đối với GET request, chỉ render template
     return render_template('page-register.html')
 
 from flask import request, redirect, url_for, render_template, session, flash
@@ -398,7 +400,7 @@ def login():
                 
         # Kiểm tra trong bảng user_employee
         with db.cursor() as cursor:
-            cursor.execute("SELECT * FROM user_employee WHERE user=%s", (username,))  # Thay 'username' thành 'user'
+            cursor.execute("SELECT * FROM user_employee WHERE user=%s", (username,))
             user = cursor.fetchone()
             if user and check_password_hash(user['password'], password):
                 session['user'] = username
@@ -406,7 +408,8 @@ def login():
                 return redirect(url_for('index'))
 
         flash('Sai tên đăng nhập hoặc mật khẩu!')
-        return render_template('page-login.html')
+        # Thay đổi url_for('login') thành:
+        return redirect(url_for('page-login.html'))
 
     return render_template('page-login.html')
     
@@ -457,7 +460,7 @@ def get_mysql_connection():
     return create_engine(MYSQL_CONN)
 
 # Authentication endpoint
-@app.route('/api/login', methods=['POST'])
+@app.route('/api/page-login', methods=['POST'])
 def api_login():
     data = request.get_json()
     username = data.get('username')
