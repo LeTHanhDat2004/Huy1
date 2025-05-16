@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, send_from_directory, url_for, redirect
+from flask import Flask, request, jsonify, render_template, send_from_directory, url_for, redirect,flash
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token, 
     get_jwt_identity, verify_jwt_in_request, get_jwt
@@ -189,7 +189,28 @@ def edit_department(DepartmentID):
     
     
     
-    
+@app.route('/add-payroll', methods=['GET', 'POST'])
+def add_payroll():
+    if request.method == 'POST':
+        employee_id = request.form.get('EmployeeID')
+        department_id = request.form.get('DepartmentID')
+        fullname = request.form.get('Fullname')
+        position_id = request.form.get('PositionID')
+        total = request.form.get('Total')
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO employee_payroll (EmployeeID, DepartmentID, Fullname, PositionID, Total) VALUES (%s, %s, %s, %s, %s)", (employee_id, department_id, fullname, position_id, total))
+            db.commit()
+        return redirect(url_for('payroll_details'))
+    with db.cursor() as cursor:
+        cursor.execute("SELECT * FROM employees")
+        employees = cursor.fetchall()
+        cursor.execute("SELECT * FROM departments")
+        departments = cursor.fetchall()
+        cursor.execute("SELECT * FROM positions")
+        positions = cursor.fetchall()
+        cursor.execute("SELECT * FROM employee_payroll")  
+        payrolls = cursor.fetchall()
+    return render_template('add-payroll.html', employees=employees, departments=departments, positions=positions, payrolls=payrolls)
 @app.route('/add-department', methods=['GET', 'POST'])
 def add_department():
     if request.method == 'POST':
@@ -249,7 +270,7 @@ def employee_profile():
 @app.route('/payroll-details.html ')
 def payroll_details():
     with db.cursor() as cursor:
-        cursor.execute("SELECT e.EmployeeID , e.Fullname , d.DepartmentName , p1.PositionName , p.Total   FROM employee_payroll p LEFT JOIN departments d ON p.DepartmentID = d.DepartmentID LEFT JOIN positions p1 ON p.PositionID = p1.PositionID LEFT JOIN employees e ON p.EmployeeID = e.EmployeeID ")
+        cursor.execute("SELECT p.EmployeeID , p.Fullname , d.DepartmentName , p1.PositionName , p.Total   FROM employee_payroll p LEFT JOIN departments d ON p.DepartmentID = d.DepartmentID LEFT JOIN positions p1 ON p.PositionID = p1.PositionID LEFT JOIN employees e ON p.EmployeeID = e.EmployeeID ")
         payrolls = cursor.fetchall()
         cursor.execute("SELECT * FROM employees")
         employees = cursor.fetchall()
@@ -493,7 +514,7 @@ def delete_department(DepartmentID):
         db.commit()
     return redirect(url_for('all_departments'))
 
-@app.route('/delete-payroll/<int:EmployeeID> ', methods=['POST'])
+@app.route('/delete-payroll/<int:EmployeeID> ', methods=['GET', 'POST'])
 def delete_payroll(EmployeeID):
     try:
         with db.cursor() as cursor:
