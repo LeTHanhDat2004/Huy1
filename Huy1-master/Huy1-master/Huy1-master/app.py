@@ -35,7 +35,7 @@ app = Flask(__name__,
             template_folder='templates')
 app.config['JWT_SECRET_KEY'] = JWT_SECRET_KEY
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = JWT_ACCESS_TOKEN_EXPIRES
-app.secret_key = 'your-very-secret-key'
+app.secret_key = 'app1'
 CORS(app)  # Enable CORS for all routes
 jwt = JWTManager(app)
 csrf = CSRFProtect(app)  # Thêm dòng này để khởi tạo CSRF protection
@@ -43,8 +43,8 @@ csrf = CSRFProtect(app)  # Thêm dòng này để khởi tạo CSRF protection
 db = pymysql.connect(
     host='localhost',
     user='root',
-    password="Tritran0932523321@",
-    database="sqlnewbie",
+    password="Thach4102004!",
+    database="payroll_baitap",
     cursorclass=pymysql.cursors.DictCursor
 )
 # Serve static files
@@ -80,9 +80,13 @@ def index():
 @app.route('/all-employees')
 def all_employees():
     with db.cursor() as cursor:
-        cursor.execute("SELECT EmployeeID, Fullname, DepartmentID, positionID, status FROM employees")
+        cursor.execute("SELECT EmployeeID, Fullname,DepartmentName, PositionName, Status FROM employees e LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID LEFT JOIN positions p ON e.PositionID = p.PositionID")
         employees = cursor.fetchall()
-    return render_template('all-employees.html', employees=employees)
+        cursor.execute("SELECT DepartmentID, DepartmentName FROM departments")
+        departments = cursor.fetchall()
+        cursor.execute("SELECT PositionID, PositionName FROM positions")
+        positions = cursor.fetchall()
+    return render_template('all-employees.html', employees=employees, departments=departments, positions=positions)
 
 @app.route('/add-employee', methods=['GET', 'POST'])
 def add_employee():
@@ -112,13 +116,13 @@ def add_employee():
 @app.route('/edit-employee/<int:employee_id>')
 def edit_employee(employee_id):
     if employee_id is None:
-        # Nếu không có ID, chuyển hướng đến trang danh sách nhân viên
+         #Nếu không có ID, chuyển hướng đến trang danh sách nhân viên
         return redirect(url_for('all_employees'))
     try:
         with db.cursor() as cursor:
             # Lấy thông tin nhân viên theo ID
             cursor.execute("""
-                SELECT e.*, d.DepartmentName, p.PositionName 
+                SELECT e.EmployeeID, e.FullName, d.DepartmentName, p.PositionName 
                 FROM employees e
                 LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID
                 LEFT JOIN positions p ON e.PositionID = p.PositionID
@@ -145,6 +149,7 @@ def edit_employee(employee_id):
                     'Gender': '',
                     'HireDate': ''
                 }
+            print(emp)
 
         return render_template('edit-employee.html', emp=emp, departments=departments, positions=positions)
     except Exception as e:
@@ -160,7 +165,45 @@ def edit_employee(employee_id):
             'HireDate': ''
         }
         return render_template('edit-employee.html', emp=emp, departments=[], positions=[])
+@app.route('/edit-department', defaults={'DepartmentID': None})
+@app.route('/edit-department/<int:DepartmentID>')
+def edit_department(DepartmentID):
+    if DepartmentID is None:
+        return redirect(url_for('all_departments'))
+    try:
 
+        with db.cursor() as cursor:
+
+            cursor.execute("SELECT DepartmentID, DepartmentName FROM departments WHERE DepartmentID = %s ", (DepartmentID,))
+            departments = cursor.fetchone()
+            if not departments:
+                departments = {
+                    'DepartmentID': 0,
+                    'DepartmentName': 'Không tìm thấy',
+                }
+                print(departments)
+                return render_template('edit-department.html', error="Department not found")
+            return render_template('edit-department.html', departments=departments,)
+    except Exception as e:
+        return render_template('edit-department.html', error=str(e))
+    
+    
+    
+    
+@app.route('/add-department', methods=['GET', 'POST'])
+def add_department():
+    if request.method == 'POST':
+        department_name = request.form.get('DepartmentName')
+        with db.cursor() as cursor:
+            cursor.execute("INSERT INTO departments (DepartmentName) VALUES (%s)", (department_name,))
+            db.commit()
+        return redirect(url_for('all_departments'))
+    with db.cursor() as cursor:
+        cursor.execute("SELECT * FROM departments")
+        departments = cursor.fetchall()
+        cursor.execute("SELECT * FROM employees")
+        employees = cursor.fetchall()
+    return render_template('add-department.html', departments=departments, employees=employees)
 @app.route('/employee-profile')
 def employee_profile():
     try:
@@ -203,48 +246,55 @@ def employee_profile():
         return render_template('employee-profile.html', emp=emp)
 
 @app.route('/payroll-details')
-@app.route('/payroll-details.html')
+@app.route('/payroll-details.html ')
 def payroll_details():
     with db.cursor() as cursor:
-        cursor.execute("""
-            SELECT EmployeeID as employee_id,
-                   Fullname as employee_name,
-                   0 as base_salary,
-                   0 as bonus,
-                   0 as deductions,
-                   0 as net_salary,
-                   'Bank Transfer' as payment_type,
-                   'Pending' as status,
-                   CURRENT_TIMESTAMP as payment_date
-            FROM employees
-        """)
+        cursor.execute("SELECT e.EmployeeID , e.Fullname , d.DepartmentName , p1.PositionName , p.Total   FROM employee_payroll p LEFT JOIN departments d ON p.DepartmentID = d.DepartmentID LEFT JOIN positions p1 ON p.PositionID = p1.PositionID LEFT JOIN employees e ON p.EmployeeID = e.EmployeeID ")
         payrolls = cursor.fetchall()
-    return render_template('payroll-details.html', payrolls=payrolls)
+        cursor.execute("SELECT * FROM employees")
+        employees = cursor.fetchall()
+        cursor.execute("SELECT * FROM departments")
+        departments = cursor.fetchall()
+        cursor.execute("SELECT * FROM positions")
+        positions = cursor.fetchall()
+    return render_template('payroll-details.html', payrolls=payrolls , employees=employees , departments=departments , positions=positions )
 
 @app.route('/salary-history')
 def salary_history():
     with db.cursor() as cursor:
-        cursor.execute("SELECT * FROM salaries")
+        cursor.execute("SELECT s.EmployeeID, e.FullName, s.SalaryID, s.SalaryMonth, s.BaseSalary, s.Bonus, s.Deductions, s.NetSalary FROM salaries s LEFT JOIN employees e ON s.EmployeeID = e.EmployeeID")
         salaries = cursor.fetchall()
-    print(salaries)  # In ra dữ liệu để kiểm tra
-    return render_template('salary-history.html', salaries=salaries)
+        cursor.execute("SELECT * FROM employees")
+        employees = cursor.fetchall()
+        cursor.execute("SELECT * FROM departments") 
+        departments = cursor.fetchall()
+        cursor.execute("SELECT * FROM positions")
+        positions = cursor.fetchall()
+    return render_template('salary-history.html', salaries=salaries, employees=employees, departments=departments, positions=positions)
 
 @app.route('/attendance-records')
 def attendance_records():
     with db.cursor() as cursor:
-        cursor.execute("SELECT * FROM attendance")
+        cursor.execute("SELECT a.EmployeeID, e.FullName, a.AttendanceID, a.WorkDays, a.AbsentDays, a.LeaveDays, a.AttendanceMonth FROM attendance a LEFT JOIN employees e ON a.EmployeeID = e.EmployeeID")
         attendance_records = cursor.fetchall()
-    print(attendance_records)  # Kiểm tra dữ liệu trả về
-    return render_template('attendance-records.html', attendance_records=attendance_records)
+        cursor.execute("SELECT * FROM employees")
+        employees = cursor.fetchall()
+        cursor.execute("SELECT * FROM departments")
+        departments = cursor.fetchall()
+        cursor.execute("SELECT * FROM positions")
+        positions = cursor.fetchall()
+    return render_template('attendance-records.html', attendance_records=attendance_records, employees=employees, departments=departments, positions=positions)
 
 
 @app.route('/all-departments')
 def all_departments():
     with db.cursor() as cursor:
-        cursor.execute("SELECT * FROM departments")
+        cursor.execute("SELECT d.DepartmentID, d.DepartmentName, e.Fullname  FROM departments d LEFT JOIN employees e ON d.DepartmentID = e.DepartmentID ")
         departments = cursor.fetchall()
+        cursor.execute("SELECT * FROM employees")
+        employees = cursor.fetchall()
     print(departments)  # Kiểm tra dữ liệu trả về
-    return render_template('all-departments.html', departments=departments)
+    return render_template('all-departments.html', departments=departments, employees=employees)
 
 @app.route('/all-job-titles')
 def all_job_titles():
@@ -385,45 +435,77 @@ def login():
 
 
 
+@app.route('/update_payroll', methods=['POST'])
+def update_payroll():
+    if request.method == 'POST':
+        employee_id = request.form.get('EmployeeID')
+        fullname = request.form.get('FullName')
+        position_id = request.form.get('PositionID')
+        total = request.form.get('Total')
+        department_id = request.form.get('DepartmentID')
+        with db.cursor() as cursor:
+            cursor.execute("""
+                UPDATE employee_payroll
+                SET FullName = %s, PositionID = %s, Total = %s, DepartmentID = %s
+                WHERE EmployeeID = %s
+                """, (fullname, position_id, total, department_id, employee_id))
+            db.commit()     
+        return redirect(url_for('payroll_details'))
 
-@app.route('/edit-payroll/<int:employee_id>')
-def edit_payroll(employee_id):
+@app.route('/edit-payroll', defaults={'EmployeeID': None})
+@app.route('/edit-payroll/<int:EmployeeID> ')
+def edit_payroll(EmployeeID):
     with db.cursor() as cursor:
-        cursor.execute("""
-            SELECT EmployeeID as employee_id,
-                   Fullname as employee_name,
-                   0 as base_salary,
-                   0 as bonus,
-                   0 as deductions,
-                   0 as net_salary,
-                   'Bank Transfer' as payment_type,
-                   'Pending' as status,
-                   CURRENT_TIMESTAMP as payment_date
-            FROM employees
-            WHERE EmployeeID = %s
-        """, (employee_id,))
+        cursor.execute("SELECT * FROM employee_payroll WHERE EmployeeID = %s", (EmployeeID,))
         payroll = cursor.fetchone()
-        
-        if not payroll:
-            payroll = {
-                'employee_id': 0,
-                'employee_name': 'Không tìm thấy',
-                'base_salary': 0,
-                'bonus': 0,
-                'deductions': 0,
-                'net_salary': 0,
-                'payment_type': '',
-                'status': 'Không tìm thấy',
-                'payment_date': ''
-            }
-            
-    return render_template('edit-payroll.html', payroll=payroll)
+        cursor.execute("SELECT * FROM employees")
+        employees = cursor.fetchall()
+        cursor.execute("SELECT * FROM departments")
+        departments = cursor.fetchall()
+        cursor.execute("SELECT * FROM positions")
+        positions = cursor.fetchall()
+        cursor.execute("SELECT * FROM employee_payroll")
+        employee_payrolls = cursor.fetchall()
+        print(employee_payrolls)
+    return render_template('edit-payroll.html', payroll=payroll, employees=employees, departments=departments, positions=positions, employee_payrolls=employee_payrolls)
+@app.route('/update_department', methods=['GET', 'POST'])
+def update_department():
+    if request.method == 'POST':
+        department_id = request.form.get('DepartmentID')
+        department_name = request.form.get('DepartmentName')
+        with db.cursor() as cursor:
+            cursor.execute("UPDATE departments SET DepartmentName = %s WHERE DepartmentID = %s", (department_name, department_id))
+            db.commit()
+        return redirect(url_for('all_departments'))
+    with db.cursor() as cursor:
+        cursor.execute("SELECT * FROM departments")
+        cursor.execute("SELECT * FROM employees")
+        cursor.execute("SELECT * FROM positions")
+        departments = cursor.fetchall()
+        employees = cursor.fetchall()
+        positions = cursor.fetchall()
+    return render_template('edit-department.html', departments=departments, employees=employees, positions=positions)
 
-@app.route('/delete-payroll/<int:EmployeeID>')
+@app.route('/delete-department/<int:DepartmentID> ', methods=['POST'])
+def delete_department(DepartmentID):
+    with db.cursor() as cursor:
+        cursor.execute("DELETE FROM departments WHERE DepartmentID = %s", (DepartmentID,))
+        db.commit()
+    return redirect(url_for('all_departments'))
+
+@app.route('/delete-payroll/<int:EmployeeID> ', methods=['POST'])
 def delete_payroll(EmployeeID):
-    # Xử lý xóa payroll ở đây
-    # ...
-    return redirect(url_for('payroll_details'))  # hoặc trang phù hợp
+    try:
+        with db.cursor() as cursor:
+            cursor.execute("DELETE FROM employee_payroll WHERE EmployeeID = %s", (EmployeeID,))
+            db.commit()
+        flash('Payroll deleted successfully', 'success')
+        return redirect(url_for('payroll_details'))
+    except Exception as e:
+        flash('Error deleting payroll', 'error')
+        print(e)
+        traceback.print_exc()
+        return redirect(url_for('payroll_details'))
 
 # Database connection functions
 def get_sql_server_connection():
@@ -593,13 +675,11 @@ def api_update_employee(employee_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/check-attendance')
-def check_attendance():
-    return render_template('check-attendance.html')
 
-@app.route('/update_employee', methods=['POST'])
+
+@app.route('/update_employee', methods=['GET', 'POST'])
 def update_employee():
-    try:
+    if request.method == 'POST':
         employee_id = request.form.get('EmployeeID')
         fullname = request.form.get('FullName')
         department_id = request.form.get('DepartmentID')
@@ -613,12 +693,11 @@ def update_employee():
                 WHERE EmployeeID=%s
             """, (fullname, department_id, position_id, status, employee_id))
             db.commit()
+        print("Cập nhật thành công")
+        print(fullname, department_id, position_id, status, employee_id)
         # Sau khi cập nhật thành công, chuyển về trang danh sách nhân viên
         return redirect(url_for('all_employees'))
-    except Exception as e:
-        print("Lỗi khi cập nhật nhân viên:", e)
-        return "Có lỗi xảy ra khi cập nhật nhân viên!"
-
+    
 
 
 # Thêm SECRET_KEY vào config
@@ -720,7 +799,45 @@ def api_add_employee_v2():
     except Exception as e:
         traceback.print_exc()  # log lỗi đầy đủ ra console
         return jsonify({'error': str(e)}), 500
+@app.route('/check-attendance', methods=['POST'])
+def check_attendance():
+    data = request.get_json()
+    employee_id = data.get('EmployeeID')
+    with db.cursor() as cursor:
+        cursor.execute("SELECT * FROM employees WHERE EmployeeID = %s", (employee_id,))
+        employee = cursor.fetchone()
+        if employee:            
+            return jsonify({'message': 'Employee found', 'employee': employee})
+        else:
+            return jsonify({'message': 'Employee not found'}), 404
+    
+@app.route('/api/check-Out', methods=['PUT'])
+def check_out():
+    data = request.get_json()
+    employee_id = data.get('EmployeeID')
+    with db.cursor() as cursor:
+        cursor.execute("SELECT * FROM employees WHERE EmployeeID = %s", (employee_id,))
+        employee = cursor.fetchone()
+        if employee:
+            return jsonify({'message': 'Employee found', 'employee': employee})
+        else:
+            return jsonify({'message': 'Employee not found'}), 404
+    
 
+
+@app.route('/api/check-In', methods=['POST'])
+def check_in():
+    data = request.get_json()
+    employee_id = data.get('EmployeeID')
+    with db.cursor() as cursor:
+        cursor.execute("SELECT * FROM employees WHERE EmployeeID = %s", (employee_id,))
+        employee = cursor.fetchone()
+        if employee:
+            return jsonify({'message': 'Employee found', 'employee': employee})
+        else:
+                  return jsonify({'message': 'Employee not found'}), 404
+        
+   
 @app.route('/api/register', methods=['POST'])
 def api_register():
     data = request.get_json()

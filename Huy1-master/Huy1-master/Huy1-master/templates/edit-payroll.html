@@ -20,7 +20,8 @@
                         <h5 class="card-title">Payroll Info</h5>
                     </div>
                     <div class="card-body">
-                        <form method="post">
+                        <form action="/update_payroll" method="post">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <div class="row">
                                 <div class="col-lg-6 col-md-6 col-sm-12">
                                     <div class="form-group">
@@ -30,8 +31,12 @@
                                 </div>
                                 <div class="col-lg-6 col-md-6 col-sm-12">
                                     <div class="form-group">
-                                        <label>Department ID</label>
-                                        <input type="text" class="form-control" name="DepartmentID" value="{{ payroll.DepartmentID }}" required>
+                                        <label>Department</label>
+                                        <select class="form-control" name="DepartmentID" required>
+                                            {% for dept in departments %}
+                                                <option value="{{ dept.DepartmentID }}">{{ dept.DepartmentName }}</option>
+                                            {% endfor %}
+                                        </select>
                                     </div>
                                 </div>
                                 <div class="col-lg-6 col-md-6 col-sm-12">
@@ -42,8 +47,12 @@
                                 </div>
                                 <div class="col-lg-6 col-md-6 col-sm-12">
                                     <div class="form-group">
-                                        <label>Position ID</label>
-                                        <input type="text" class="form-control" name="PositionID" value="{{ payroll.PositionID }}" required>
+                                        <label>Position</label>
+                                        <select class="form-control" name="PositionID" required>
+                                            {% for pos in positions %}
+                                                <option value="{{ pos.PositionID }}">{{ pos.PositionName }}</option>
+                                            {% endfor %}
+                                        </select>
                                     </div>
                                 </div>
                                 <div class="col-lg-6 col-md-6 col-sm-12">

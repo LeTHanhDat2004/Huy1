@@ -13,8 +13,8 @@ SQL_SERVER_CONFIG = {
 MYSQL_CONFIG = {
     'host': 'localhost',
     'user': 'root',
-    'password': 'Tritran0932523321@',
-    'database': 'sqlnewbie',
+    'password': 'Thach4102004!',
+    'database': 'payroll_baitap',
     'port': 3306
 }
 
@@ -24,7 +24,7 @@ SQL_SERVER_CONN = "mssql+pyodbc://@KALI0CHUA/HUMAN?driver=ODBC+Driver+17+for+SQL
 MYSQL_CONN = "mysql+mysqlconnector://root:Thach4102004!@localhost:3306/Payroll_baitap"
 
 # JWT Configuration
-JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'your-secret-key-here')
+JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'app1')
 JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
 
 # API Configuration

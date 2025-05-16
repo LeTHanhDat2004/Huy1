@@ -42,7 +42,7 @@
             Nav header start
         ***********************************-->
         <div class="nav-header">
-            <a href="index.html" class="brand-logo">
+            <a href="{{ url_for('index') }}" class="brand-logo">
                 <img class="logo-abbr" src="images/logo-white.png" alt="">
                 <img class="logo-compact" src="images/logo-text-white.png" alt="">
                 <img class="brand-title" src="images/logo-text-white.png" alt="">
@@ -208,35 +208,11 @@
                 </a>
                 <ul aria-expanded="false">
                     <li><a href="{{ url_for('all_departments') }}">All Departments</a></li>
-                    <li><a href="{{ url_for('all_job_titles') }}">All Job Titles</a></li>
-                    <li><a href="{{ url_for('manage_departments') }}">Manage Departments</a></li>
-                    <li><a href="{{ url_for('manage_job_titles') }}">Manage Job Titles</a></li>
+                    <li><a href="{{ url_for('edit_department') }}">Edit Department</a></li>
+                    <li><a href="{{ url_for('add_department') }}">Add Department</a></li>
                 </ul>
             </li>
-            <li><a class="has-arrow" href="javascript:void()" aria-expanded="false">
-                    <i class="la la-chart-bar"></i>
-                    <span class="nav-text">Reports & Analytics</span>
-                </a>
-                <ul aria-expanded="false">
-                    <li><a href="{{ url_for('employee_summary') }}">Employee Summary</a></li>
-                    <li><a href="{{ url_for('payroll_report') }}">Payroll Report</a></li>
-                    <li><a href="{{ url_for('dividend_report') }}">Shareholder Dividend Report</a></li>
-                    <li><a href="{{ url_for('comparative_charts') }}">Comparative Charts</a></li>
-                </ul>
-            </li>
-            <li><a class="has-arrow" href="javascript:void()" aria-expanded="false">
-                    <i class="la la-bell"></i>
-                    <span class="nav-text">Alerts & Notifications</span>
-                </a>
-                <ul aria-expanded="false">
-                    <li><a href="{{ url_for('work_anniversary') }}">Work Anniversary</a></li>
-                    <li><a href="{{ url_for('leave_alerts') }}">Leave Alerts</a></li>
-                    <li><a href="{{ url_for('payroll_alerts') }}">Payroll Alerts</a></li>
-                    <li><a href="{{ url_for('salary_statements') }}">Salary Statements</a></li>
-                </ul>
-            </li>
-            <li><a class="has-arrow" href="javascript:void()" aria-expanded="false">
-                    <i class="la la-lock"></i>
+            
                     <span class="nav-text">Security & Access Control</span>
                 </a>
                 <ul aria-expanded="false">
@@ -273,14 +249,14 @@
                 <div class="row page-titles mx-0">
                     <div class="col-sm-6 p-md-0">
                         <div class="welcome-text">
-                            <h4>All Staff</h4>
+                            <h4>All Department</h4>
                         </div>
                     </div>
                     <div class="col-sm-6 p-md-0 justify-content-sm-end mt-2 mt-sm-0 d-flex">
                         <ol class="breadcrumb">
-                            <li class="breadcrumb-item"><a href="index.html">Home</a></li>
-                            <li class="breadcrumb-item active"><a href="javascript:void(0);">Staff</a></li>
-                            <li class="breadcrumb-item active"><a href="javascript:void(0);">All Staff</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                            <li class="breadcrumb-item active"><a href="{{ url_for('all_departments') }}">Department</a></li>
+                            <li class="breadcrumb-item active"><a href="{{ url_for('all_departments') }}">All Department</a></li>
                         </ol>
                     </div>
                 </div>
@@ -292,27 +268,34 @@
 							<div id="list-view" class="tab-pane fade active show col-lg-12">
 								<div class="card">
 									<div class="card-header">
-										<h4 class="card-title">All Staff  </h4>
-										<a href="add-staff.html" class="btn btn-primary">+ Add new</a>
+										<h4 class="card-title">All Department  </h4>
+										<a href="{{ url_for('add_department') }}" class="btn btn-primary">+ Add new</a>
 									</div>
 									<div class="card-body">
+                                        
 										<div class="table-responsive">
 											<table id="example5" class="display" style="min-width: 845px">
 												<thead>
 													<tr>
-														<th>ID</th>
-														<th>Name Department</th>
-														<th>Manage</th>
-														<th>Member Count</th>
+                                                        
+														<th>DepartmentID</th>
+														<th>DepartmentName</th>
+														
 													</tr>
 												</thead>
 												<tbody>
 													{% for dept in departments %}
 													<tr>
-													  <td>{{ dept.department_id }}</td>
-													  <td>{{ dept.department_name }}</td>
-													  <td>{{ dept.manager_name }}</td>
-													  <td>{{ dept.member_count }}</td>
+                                                        
+													  <td>{{ dept.DepartmentID }}</td>
+													  <td>{{ dept.DepartmentName }}</td>
+                                                        <td>
+                                                            <a href="{{ url_for('edit_department', DepartmentID=dept.DepartmentID) }}" class="btn btn-sm btn-primary">Edit</a>
+                                                            <form action="{{ url_for('delete_department', DepartmentID=dept.DepartmentID) }}" method="post" style="display:inline;" onsubmit="return confirm('Bạn có chắc chắn muốn xóa phòng ban này?');">
+                                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                                            </form>
+                                                        </td>
 													</tr>
 													{% endfor %}
 												</tbody>

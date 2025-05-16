@@ -22,7 +22,7 @@
       const employeeId = document.getElementById('employeeId').value;
       if (!employeeId || !token) return alert("Missing Employee ID or Token");
 
-      const res = await fetch(`${API_BASE}/attendance/check-in`, {
+      const res = await fetch(`${API_BASE}/api/check-In`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -39,11 +39,13 @@
       const employeeId = document.getElementById('employeeId').value;
       if (!employeeId || !token) return alert("Missing Employee ID or Token");
 
-      const res = await fetch(`${API_BASE}/attendance/check-out/${employeeId}`, {
+      const res = await fetch(`${API_BASE}/api/check-Out`, {
         method: 'PUT',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        }
+        },
+        body: JSON.stringify({ employee_id: employeeId })
       });
 
       const data = await res.json();

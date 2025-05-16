@@ -1,0 +1,14 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "chrome",
+            "request": "launch",
+            "name": "Open edit-employee.html",
+            "file": "c:\\Users\\ASUS\\Documents\\GitHub\\Huy1\\Huy1-master\\Huy1-master\\Huy1-master\\templates\\edit-employee.html"
+        }
+    ]
+}
