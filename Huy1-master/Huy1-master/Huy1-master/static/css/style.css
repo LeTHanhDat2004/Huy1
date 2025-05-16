@@ -12,7 +12,7 @@
 @import url("../icons/avasta/css/style.css");
 
 /* Vendor CSS */
-@import url("../vendor/perfect-scrollbar/css/perfect-scrollbar.css");
+
 @import url("../vendor/metismenu/css/metisMenu.min.css");
 .gradient-9, .datepicker.datepicker-dropdown td.day:hover, .datepicker.datepicker-dropdown th.next:hover, .datepicker.datepicker-dropdown th.prev:hover, .datepicker table tr td.selected, .datepicker table tr td.active, .datepicker table tr td.today, .datepicker table tr td.today:hover, .datepicker table tr td.today.disabled, .datepicker table tr td.today.disabled:hover {
   background: linear-gradient(to right, #f31e7a 0%, #fd712c 100%) !important; }

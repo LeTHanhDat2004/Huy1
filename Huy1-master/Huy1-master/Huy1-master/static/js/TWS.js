@@ -1,19 +1,36 @@
 // Đăng nhập và lưu token
 async function login(username, password) {
-    const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            username: username,
-            password: password
-        })
-    });
-    const data = await response.json();
-    if (response.ok) {
-        // Lưu token vào localStorage
+    try {
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+        
+        const response = await fetch('/page-login', {  // Đảm bảo endpoint này khớp với route
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                username: username,
+                password: password
+            }),
+            credentials: 'same-origin'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Đăng nhập thất bại');
+        }
+
+        const data = await response.json();
         localStorage.setItem('access_token', data.access_token);
+        localStorage.setItem('user_role', data.role);
+        window.location.href = '/';
+    } catch (error) {
+        console.error('Login error:', error);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger';
+        errorDiv.textContent = error.message || 'Đăng nhập thất bại. Vui lòng thử lại.';
+        document.querySelector('.auth-form').insertBefore(errorDiv, document.querySelector('form'));
     }
 }
 
@@ -36,7 +53,7 @@ function isLoggedIn() {
 // Đăng xuất
 function logout() {
     localStorage.removeItem('access_token');
-    window.location.href = '/login';
+    window.location.href = '/page-login';
 }
 
 // Lấy token
@@ -48,8 +65,8 @@ function getToken() {
 async function fetchWithAuth(url, options = {}) {
     const token = getToken();
     if (!token) {
-        window.location.href = '/login';
-        return;
+        // Chỉ throw error, không tự động logout
+        throw new Error('No auth token');
     }
 
     const headers = {
@@ -60,9 +77,8 @@ async function fetchWithAuth(url, options = {}) {
     try {
         const response = await fetch(url, { ...options, headers });
         if (response.status === 401) {
-            // Token hết hạn hoặc không hợp lệ
-            logout();
-            return;
+            // Chỉ throw error, không tự động logout
+            throw new Error('Unauthorized');
         }
         return response;
     } catch (error) {
@@ -103,25 +119,22 @@ function updateUIByRole() {
     }
 }
 
-// Cập nhật checkAuth để gọi updateUIByRole
+// Cập nhật checkAuth để tránh vòng lặp
 function checkAuth() {
-    if (!isLoggedIn()) {
-        window.location.href = '/login';
-        return false;
-    }
-    if (isLoggedIn()) {
-        updateUIByRole();
+    // Không kiểm tra trên trang login
+    if (window.location.pathname === '/page-login' || window.location.pathname === '/login') {
         return true;
     }
-    return false;
+    
+    if (!isLoggedIn()) {
+        window.location.href = '/page-login';
+        return false;
+    }
+    
+    updateUIByRole();
+    return true;
 }
 
-// Thêm vào các trang cần bảo vệ
-document.addEventListener('DOMContentLoaded', function() {
-    if (!checkAuth()) return;
-    updateUIByRole();
-    // Code của trang
-});
 
 async function register(username, email, password) {
     const response = await fetch('/api/register', {

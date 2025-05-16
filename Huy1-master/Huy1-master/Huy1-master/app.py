@@ -3,6 +3,7 @@ from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token, 
     get_jwt_identity, verify_jwt_in_request, get_jwt
 )
+import logging
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
 from sqlalchemy import create_engine
@@ -30,7 +31,7 @@ def role_required(allowed_roles):
     return decorator
 
 app = Flask(__name__, 
-            static_folder='Dashboard-HR&PayRoll',
+            static_folder='static',  # Thay đổi này
             template_folder='templates')
 app.config['JWT_SECRET_KEY'] = JWT_SECRET_KEY
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = JWT_ACCESS_TOKEN_EXPIRES
@@ -324,95 +325,67 @@ def access_logs():
     return render_template('access-logs.html')
 
 @app.route('/page-register', methods=['GET', 'POST'])
-@app.route('/page-register.html', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        username = request.form.get('username')
-        fullname = request.form.get('fullname')
-        email = request.form.get('email')
-        password = request.form.get('password')
-
-        # Kiểm tra dữ liệu đầu vào cơ bản
-        if not username or not fullname or not email or not password:
-            return jsonify({'message': 'Vui lòng điền đầy đủ tất cả các trường thông tin.'}), 400
-
-        # Kiểm tra định dạng email cơ bản
-        if "@" not in email or "." not in email.split('@')[-1]:
-            return jsonify({'message': 'Địa chỉ email không hợp lệ.'}), 400
-        
-        # Kiểm tra độ dài mật khẩu
-        if len(password) < 8:
-            return jsonify({'message': 'Mật khẩu phải có ít nhất 8 ký tự.'}), 400
-
         try:
+            data = request.get_json()
+            username = data.get('username')
+            fullname = data.get('fullname')
+            email = data.get('email')
+            password = data.get('password')
+            
             with db.cursor() as cursor:
-                # Kiểm tra username đã tồn tại chưa trong user_employee
-                cursor.execute("SELECT * FROM user_employee WHERE user = %s", (username,))
+                # Chỉ kiểm tra username trùng
+                cursor.execute('SELECT * FROM user_employee WHERE username = %s', (username,))
                 if cursor.fetchone():
-                    return jsonify({'message': 'Tên đăng nhập này đã tồn tại. Vui lòng chọn tên khác.'}), 409
-
-                # Kiểm tra email đã tồn tại chưa trong user_employee
-                cursor.execute("SELECT * FROM user_employee WHERE email = %s", (email,))
-                if cursor.fetchone():
-                    return jsonify({'message': 'Địa chỉ email này đã được sử dụng. Vui lòng sử dụng email khác.'}), 409
-                    
-                # Mã hóa mật khẩu
-                hashed_password = generate_password_hash(password)
+                    return jsonify({'message': 'Tên đăng nhập đã tồn tại'}), 400
                 
-                # Lưu vào database user_employee
-                cursor.execute("""
-                    INSERT INTO user_employee (user, fullname, email, password)
-                    VALUES (%s, %s, %s, %s)
-                """, (username, fullname, email, hashed_password))
+                # Thêm user mới
+                hashed_password = generate_password_hash(password)
+                cursor.execute(
+                    'INSERT INTO user_employee (username, fullname, email, password, role) VALUES (%s, %s, %s, %s, %s)',
+                    (username, fullname, email, hashed_password, 'employee')
+                )
                 db.commit()
-                return jsonify({
-                    'success': True,
-                    'message': 'Đăng ký thành công! Bạn sẽ được chuyển đến trang đăng nhập.',
-                    'redirect': url_for('page-login.html')
-                }), 201
+                
+                return jsonify({'message': 'Đăng ký thành công'}), 201
+                
         except Exception as e:
-            print(f"Lỗi khi đăng ký: {str(e)}")
-            return jsonify({
-                'success': False,
-                'message': 'Đăng ký thất bại. Vui lòng thử lại sau.'
-            }), 500
+            db.rollback()
+            return jsonify({'message': 'Có lỗi xảy ra, vui lòng thử lại sau'}), 500
             
     return render_template('page-register.html')
 
-from flask import request, redirect, url_for, render_template, session, flash
-from werkzeug.security import check_password_hash
-
-@app.route('/page-login', methods=['GET', 'POST'])
 @app.route('/page-login.html', methods=['GET', 'POST'])
+# Xóa tất cả các route login cũ
+
+# Thêm route mới này
+@app.route('/page-login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-
-        # Kiểm tra trong bảng admin
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        
         with db.cursor() as cursor:
-            cursor.execute("SELECT * FROM admin WHERE user=%s", (username,))
-            admin = cursor.fetchone()
-            if admin and check_password_hash(admin['pass'], password):
-                session['user'] = username
-                session['role'] = 'admin'
-                return redirect(url_for('index'))
-                
-        # Kiểm tra trong bảng user_employee
-        with db.cursor() as cursor:
-            cursor.execute("SELECT * FROM user_employee WHERE user=%s", (username,))
+            cursor.execute('SELECT * FROM user_employee WHERE username = %s', (username,))
             user = cursor.fetchone()
+            
             if user and check_password_hash(user['password'], password):
-                session['user'] = username
-                session['role'] = 'employee'
-                return redirect(url_for('index'))
-
-        flash('Sai tên đăng nhập hoặc mật khẩu!')
-        # Thay đổi url_for('login') thành:
-        return redirect(url_for('page-login.html'))
-
+                access_token = create_access_token(identity=username)
+                return jsonify({
+                    'access_token': access_token,
+                    'role': user['role']
+                }), 200
+            return jsonify({'message': 'Sai tên đăng nhập hoặc mật khẩu'}), 401
     return render_template('page-login.html')
-    
+
+# Thêm route redirect cho page-login.html
+
+
+
+
+
 @app.route('/edit-payroll/<int:employee_id>')
 def edit_payroll(employee_id):
     with db.cursor() as cursor:
@@ -791,3 +764,13 @@ from flask_wtf.csrf import CSRFProtect
 
 csrf = CSRFProtect()
 csrf.init_app(app)
+@app.before_request
+def before_request():
+    if 'user' in session:
+        session.permanent = True
+        app.permanent_session_lifetime = timedelta(minutes=30)
+
+csrf = CSRFProtect()
+csrf.init_app(app)
+csrf.init_app(app)
+
