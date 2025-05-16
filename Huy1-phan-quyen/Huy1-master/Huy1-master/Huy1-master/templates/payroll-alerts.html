@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payroll Alerts - HR & Payroll System</title>
+    <link rel="stylesheet" href="{{ url_for('serve_css', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('serve_css', filename='responsive.css') }}">
+    <link rel="stylesheet" href="{{ url_for('serve_vendor', filename='bootstrap/css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('serve_vendor', filename='font-awesome/css/font-awesome.min.css') }}">
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('index') }}">
+                                <i class="fa fa-dashboard"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('all_employees') }}">
+                                <i class="fa fa-users"></i> Employees
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('payroll_details') }}">
+                                <i class="fa fa-money"></i> Payroll
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="{{ url_for('payroll_alerts') }}">
+                                <i class="fa fa-bell"></i> Payroll Alerts
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Payroll Alerts</h1>
+                </div>
+
+                <!-- Alerts Section -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">Recent Payroll Alerts</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Employee</th>
+                                                <th>Alert Type</th>
+                                                <th>Description</th>
+                                                <th>Status</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Sample alerts - replace with dynamic data -->
+                                            <tr>
+                                                <td>2024-03-20</td>
+                                                <td>John Doe</td>
+                                                <td>Salary Adjustment</td>
+                                                <td>Pending salary adjustment approval</td>
+                                                <td><span class="badge bg-warning">Pending</span></td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-primary">Review</button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>2024-03-19</td>
+                                                <td>Jane Smith</td>
+                                                <td>Overtime Payment</td>
+                                                <td>Overtime hours need verification</td>
+                                                <td><span class="badge bg-info">In Progress</span></td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-primary">Review</button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('serve_vendor', filename='jquery/jquery.min.js') }}"></script>
+    <script src="{{ url_for('serve_vendor', filename='bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ url_for('serve_js', filename='main.js') }}"></script>
+</body>
+</html> 
