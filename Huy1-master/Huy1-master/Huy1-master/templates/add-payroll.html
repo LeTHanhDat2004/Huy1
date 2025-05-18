@@ -6,12 +6,47 @@
 </head>
 <body>
     <h2>Add Payroll</h2>
-    <form method="post">
-        <label>Employee ID:</label><input type="text" name="EmployeeID" required><br>
-        <label>Department ID:</label><input type="text" name="DepartmentID" required><br>
-        <label>Fullname:</label><input type="text" name="Fullname" required><br>
-        <label>Position ID:</label><input type="text" name="PositionID" required><br>
-        <label>Total:</label><input type="number" name="Total" required><br>
+    <form action="{{ url_for('add_payroll') }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="row">
+            <div class="col-lg-6 col-md-6 col-sm-12">
+                <div class="form-group">
+                    <label>Employee ID:</label>
+                    <input type="text" name="EmployeeID" value="{{ employees.EmployeeID }}" required>
+                </div>
+            </div>
+        <div class="col-lg-6 col-md-6 col-sm-12">
+            <div class="form-group">
+                <label>Department</label>
+                <select class="form-control" name="DepartmentID" required>
+                    {% for dept in departments %}
+                        <option value="{{ dept.DepartmentID }}">{{ dept.DepartmentName }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>  
+        <div class="col-lg-6 col-md-6 col-sm-12">
+            <div class="form-group">
+                <label>Fullname</label>
+                <input type="text" name="Fullname" value="{{ employees.FullName }}" required>
+            </div>      
+        </div>
+        <div class="col-lg-6 col-md-6 col-sm-12">
+            <div class="form-group">
+                <label>Position</label>
+                <select class="form-control" name="PositionID" required>
+                    {% for pos in positions %}
+                        <option value="{{ pos.PositionID }}">{{ pos.PositionName }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="col-lg-6 col-md-6 col-sm-12">
+            <div class="form-group">
+                <label>Total</label>
+                <input type="number" name="Total" value="{{ employees.Total }}" required>
+            </div>
+        </div>
         <button type="submit">Add</button>
     </form>
     <a href="{{ url_for('payroll_details') }}">Back to Payroll List</a>
