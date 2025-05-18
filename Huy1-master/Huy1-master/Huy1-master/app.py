@@ -36,17 +36,34 @@ app = Flask(__name__,
 app.config['JWT_SECRET_KEY'] = JWT_SECRET_KEY
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = JWT_ACCESS_TOKEN_EXPIRES
 app.secret_key = 'your-very-secret-key'
-CORS(app)  # Enable CORS for all routes
+# Thay đổi cấu hình CORS
+CORS(app, resources={
+    r"/*": {
+        "origins": ["http://localhost:5000", "http://127.0.0.1:5000"],  # Chỉ định rõ origins
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "X-CSRFToken"],
+        "supports_credentials": True  # Quan trọng cho việc gửi cookies
+    }
+})  # Enable CORS for all routes
 jwt = JWTManager(app)
 csrf = CSRFProtect(app)  # Thêm dòng này để khởi tạo CSRF protection
 
-db = pymysql.connect(
-    host='localhost',
-    user='root',
-    password="Tritran0932523321@",
-    database="sqlnewbie",
-    cursorclass=pymysql.cursors.DictCursor
-)
+def get_db_connection():
+    try:
+        connection = pymysql.connect(
+            host='127.0.0.1',  # Thay localhost bằng IP cụ thể
+            user='root',
+            password="Tritran0932523321@",
+            database="sqlnewbie",
+            cursorclass=pymysql.cursors.DictCursor,
+            connect_timeout=60,
+            read_timeout=30,
+            write_timeout=30
+        )
+        return connection
+    except Exception as e:
+        app.logger.error(f"Database connection error: {str(e)}")
+        raise
 # Serve static files
 @app.route('/static/<path:filename>')
 def serve_static(filename):
@@ -74,8 +91,76 @@ def serve_vendor(filename):
 
 # Frontend Routes
 @app.route('/')
+@jwt_required()
 def index():
-    return render_template('index.html')
+    try:
+        # Lấy thông tin role từ JWT token
+        claims = get_jwt()
+        current_role = claims.get('role', 'employee')  # Mặc định là employee nếu không có role
+        
+        # Lấy dữ liệu chung cho tất cả các role
+        common_data = {
+            'user_info': get_jwt_identity(),
+            'current_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        
+        if current_role == 'admin':
+            # Admin sẽ thấy tất cả dữ liệu
+            try:
+                db = get_db_connection()
+                with db.cursor() as cursor:
+                    # Lấy danh sách nhân viên
+                    cursor.execute("SELECT * FROM employees")
+                    employees = cursor.fetchall()
+                    
+                    # Lấy thông tin phòng ban
+                    cursor.execute("SELECT * FROM departments")
+                    departments = cursor.fetchall()
+                    
+                    # Lấy thông tin lương
+                    cursor.execute("SELECT * FROM salaries")
+                    salaries = cursor.fetchall()
+                    
+                    return render_template('index.html',
+                        role='admin',
+                        employees=employees,
+                        departments=departments,
+                        salaries=salaries,
+                        **common_data
+                    )
+            finally:
+                if 'db' in locals():
+                    db.close()
+        else:
+            # Employee chỉ thấy thông tin của mình
+            try:
+                db = get_db_connection()
+                with db.cursor() as cursor:
+                    # Lấy thông tin nhân viên hiện tại
+                    username = get_jwt_identity()
+                    cursor.execute("SELECT * FROM employees WHERE user = %s", (username,))
+                    employee = cursor.fetchone()
+                    
+                    # Lấy thông tin phòng ban của nhân viên
+                    if employee:
+                        cursor.execute("SELECT * FROM departments WHERE DepartmentID = %s", 
+                                     (employee['DepartmentID'],))
+                        department = cursor.fetchone()
+                    else:
+                        department = None
+                    
+                    return render_template('index.html',
+                        role='employee',
+                        employee=employee,
+                        department=department,
+                        **common_data
+                    )
+            finally:
+                if 'db' in locals():
+                    db.close()
+    except Exception as e:
+        app.logger.error(f'Error in index route: {str(e)}')
+        return jsonify({'message': 'Có lỗi xảy ra'}), 500
 
 @app.route('/all-employees')
 def all_employees():
@@ -328,63 +413,141 @@ def access_logs():
 def register():
     if request.method == 'POST':
         try:
+            app.logger.info('Register route POST request received')
             data = request.get_json()
+            if not data:
+                return jsonify({'message': 'Không có dữ liệu được gửi'}), 400
+                
             username = data.get('username')
             fullname = data.get('fullname')
             email = data.get('email')
             password = data.get('password')
             
-            with db.cursor() as cursor:
-                # Chỉ kiểm tra username trùng
-                cursor.execute('SELECT * FROM user_employee WHERE username = %s', (username,))
-                if cursor.fetchone():
-                    return jsonify({'message': 'Tên đăng nhập đã tồn tại'}), 400
-                
-                # Thêm user mới
-                hashed_password = generate_password_hash(password)
-                cursor.execute(
-                    'INSERT INTO user_employee (username, fullname, email, password, role) VALUES (%s, %s, %s, %s, %s)',
-                    (username, fullname, email, hashed_password, 'employee')
-                )
-                db.commit()
-                
-                return jsonify({'message': 'Đăng ký thành công'}), 201
-                
+            if not all([username, fullname, email, password]):
+                app.logger.warning('Missing required fields')
+                return jsonify({'message': 'Thiếu thông tin bắt buộc'}), 400
+
+            # Validate email format
+            if '@' not in email:
+                return jsonify({'message': 'Email không hợp lệ'}), 400
+
+            # Validate password strength
+            if len(password) < 6:
+                return jsonify({'message': 'Mật khẩu phải có ít nhất 6 ký tự'}), 400
+
+            db = get_db_connection()
+            try:
+                with db.cursor() as cursor:
+                    # Kiểm tra username trùng
+                    cursor.execute('SELECT * FROM user_employee WHERE username = %s', (username,))
+                    if cursor.fetchone():
+                        return jsonify({'message': 'Tên đăng nhập đã tồn tại'}), 400
+                    
+                    # Kiểm tra email trùng
+                    cursor.execute('SELECT * FROM user_employee WHERE email = %s', (email,))
+                    if cursor.fetchone():
+                        return jsonify({'message': 'Email đã được sử dụng'}), 400
+                    
+                    # Thêm user mới
+                    hashed_password = generate_password_hash(password)
+                    cursor.execute(
+                        'INSERT INTO user_employee (username, fullname, email, password, role) VALUES (%s, %s, %s, %s, %s)',
+                        (username, fullname, email, hashed_password, 'employee')
+                    )
+                    db.commit()
+                    app.logger.info(f'User {username} registered successfully')
+                    return jsonify({'message': 'Đăng ký thành công'}), 201
+            except Exception as e:
+                db.rollback()
+                app.logger.error(f'Database error: {str(e)}')
+                return jsonify({'message': 'Lỗi khi thêm người dùng'}), 500
+            finally:
+                db.close()
         except Exception as e:
-            db.rollback()
+            app.logger.error(f'Unexpected error: {str(e)}')
             return jsonify({'message': 'Có lỗi xảy ra, vui lòng thử lại sau'}), 500
             
     return render_template('page-register.html')
 
-@app.route('/page-login.html', methods=['GET', 'POST'])
-# Xóa tất cả các route login cũ
 
-# Thêm route mới này
 @app.route('/page-login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
+    if request.method == 'GET':
+        return render_template('page-login.html')
+    
+    try:
         data = request.get_json()
         username = data.get('username')
         password = data.get('password')
         
-        with db.cursor() as cursor:
-            cursor.execute('SELECT * FROM user_employee WHERE username = %s', (username,))
-            user = cursor.fetchone()
-            
-            if user and check_password_hash(user['password'], password):
-                access_token = create_access_token(identity=username)
-                return jsonify({
-                    'access_token': access_token,
-                    'role': user['role']
-                }), 200
-            return jsonify({'message': 'Sai tên đăng nhập hoặc mật khẩu'}), 401
-    return render_template('page-login.html')
+        # Kiểm tra thông tin đăng nhập từ database
+        connection = get_db_connection()
+        try:
+            with connection.cursor() as cursor:
+                # Kiểm tra trong bảng admin trước
+                cursor.execute('SELECT * FROM admin WHERE user = %s', (username,))
+                user = cursor.fetchone()
+                if user and check_password_hash(user['pass'], password):
+                    access_token = create_access_token(
+                        identity=username,
+                        additional_claims={'role': 'admin'}
+                    )
+                    return jsonify({
+                        'access_token': access_token,
+                        'role': 'admin'
+                    }), 200
 
-# Thêm route redirect cho page-login.html
+                # Nếu không có trong admin, kiểm tra trong user_employee
+                cursor.execute('SELECT * FROM user_employee WHERE username = %s', (username,))
+                user = cursor.fetchone()
+                if user and check_password_hash(user['password'], password):
+                    access_token = create_access_token(
+                        identity=username,
+                        additional_claims={'role': 'employee'}
+                    )
+                    return jsonify({
+                        'access_token': access_token,
+                        'role': 'employee'
+                    }), 200
 
+            return jsonify({'message': 'Invalid credentials'}), 401
+        finally:
+            connection.close()
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
 
+# Thêm decorator để kiểm tra quyền truy cập
+def role_required(allowed_roles):
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            verify_jwt_in_request()
+            claims = get_jwt()
+            if claims.get('role') in allowed_roles:
+                return fn(*args, **kwargs)
+            return jsonify({'message': 'Không có quyền truy cập'}), 403
+        return wrapper
+    return decorator
 
+# Ví dụ sử dụng decorator để bảo vệ route
+@app.route('/admin-dashboard')
+@jwt_required()
+@role_required(['admin'])
+def admin_dashboard():
+    return render_template('admin-dashboard.html')
 
+@app.route('/employee-dashboard')
+@jwt_required()
+@role_required(['employee'])
+def employee_dashboard():
+    return render_template('employee-dashboard.html')
+
+# Route cho cả admin và employee
+@app.route('/profile')
+@jwt_required()
+@role_required(['admin', 'employee'])
+def profile():
+    return render_template('profile.html')
 
 @app.route('/edit-payroll/<int:employee_id>')
 def edit_payroll(employee_id):
@@ -442,51 +605,42 @@ def api_login():
     if not username or not password:
         return jsonify({'message': 'Thiếu username hoặc password'}), 400
 
-    # Kiểm tra trong bảng admin
-    with db.cursor() as cursor:
-        cursor.execute("SELECT * FROM admin WHERE user=%s", (username,))
-        admin = cursor.fetchone()
-        if admin and check_password_hash(admin['pass'], password):
-            token = create_access_token(identity=admin['id'], additional_claims={'role': ROLE_ADMIN})
-            return jsonify({
-                'access_token': token,
-                'role': ROLE_ADMIN,
-                'username': username
-            })
+    # Khởi tạo kết nối database
+    db = get_db_connection()
+    try:
+        # Kiểm tra trong bảng admin
+        with db.cursor() as cursor:
+            cursor.execute("SELECT * FROM admin WHERE user = %s AND pass = %s", (username, password))
+            admin = cursor.fetchone()
+            if admin:
+                token = create_access_token(
+                    identity=admin['idadmin'],
+                    additional_claims={'role': 'admin'}
+                )
+                return jsonify({
+                    'access_token': token,
+                    'role': 'admin',
+                    'username': username
+                })
 
-    # Kiểm tra trong bảng user_employee
-    with db.cursor() as cursor:
-        cursor.execute("SELECT * FROM user_employee WHERE user=%s", (username,))
-        user = cursor.fetchone()
-        if user and check_password_hash(user['pass'], password):
-            token = create_access_token(identity=user['id'], additional_claims={'role': ROLE_EMPLOYEE})
-            return jsonify({
-                'access_token': token,
-                'role': ROLE_EMPLOYEE,
-                'username': username
-            })
+        # Kiểm tra trong bảng user_employee (giữ nguyên phần này vì password đã được hash)
+        with db.cursor() as cursor:
+            cursor.execute("SELECT * FROM user_employee WHERE username = %s", (username,))
+            user = cursor.fetchone()
+            if user and check_password_hash(user['password'], password):
+                token = create_access_token(
+                    identity=user['id'],
+                    additional_claims={'role': 'employee'}
+                )
+                return jsonify({
+                    'access_token': token,
+                    'role': 'employee',
+                    'username': username
+                })
 
-    with db.cursor() as cursor:
-        cursor.execute("""
-            SELECT u.*, r.role_name 
-            FROM users u
-            JOIN roles r ON u.role_id = r.role_id
-            WHERE u.username = %s
-        """, (username,))
-        user = cursor.fetchone()
-        
-        if user and check_password_hash(user['password_hash'], password):
-            token = create_access_token(
-                identity=user['user_id'],
-                additional_claims={'role': user['role_name']}
-            )
-            return jsonify({
-                'access_token': token,
-                'role': user['role_name'],
-                'username': username
-            })
-
-    return jsonify({'message': 'Thông tin đăng nhập không hợp lệ'}), 401
+        return jsonify({'message': 'Invalid credentials'}), 401
+    finally:
+        db.close()
 
 # Employee endpoints
 @app.route('/api/employees', methods=['GET'])
@@ -762,15 +916,13 @@ if __name__ == '__main__':
     app.run(debug=True)
 from flask_wtf.csrf import CSRFProtect
 
-csrf = CSRFProtect()
-csrf.init_app(app)
+
 @app.before_request
 def before_request():
     if 'user' in session:
         session.permanent = True
         app.permanent_session_lifetime = timedelta(minutes=30)
 
-csrf = CSRFProtect()
-csrf.init_app(app)
+
 csrf.init_app(app)
 

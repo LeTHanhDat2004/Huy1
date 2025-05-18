@@ -1,31 +1,7 @@
-// Xóa đoạn code này
-// window.PerfectScrollbar = function() {
-//     return {
-//         destroy: function() {},
-//         update: function() {}
-//     };
-// };
 
-// Giữ lại phần code xử lý form
-// Xóa event listener cũ
-// document.querySelector('form').addEventListener('submit', async function(e) {...
-
-// Di chuyển hàm handleRegister ra ngoài
-// Đăng ký sự kiện khi trang đã load xong
-// Xóa phần event listener cũ
-/*
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('registerForm');
-    if (form) {
-        form.addEventListener('submit', handleRegister);
-    }
-});
-*/
-
-// Sửa lại hàm handleRegister
 async function handleRegister(event) {
     event.preventDefault();
-    console.log('handleRegister called'); // Thêm log này
+    console.log('handleRegister called');
 
     const formData = {
         username: document.querySelector('input[name="username"]').value.trim(),
@@ -33,7 +9,6 @@ async function handleRegister(event) {
         email: document.querySelector('input[name="email"]').value.trim(),
         password: document.getElementById('password').value
     };
-    console.log('Form data:', formData); // Thêm log này
 
     try {
         const response = await fetch('/page-register', {
@@ -44,31 +19,31 @@ async function handleRegister(event) {
             },
             body: JSON.stringify(formData)
         });
-        console.log('Response status:', response.status); // Thêm log này
 
         const data = await response.json();
-        console.log('Response data:', data); // Thêm log này
-
-        if (response.ok) {
-            window.location.href = "/page-login";
+        if (response.status === 201) {
+            showMessage('Đăng ký thành công', 'success');
+            setTimeout(() => {
+                window.location.href = "/page-login";
+            }, 1000);
         } else {
-            throw new Error(data.message || 'Đăng ký thất bại');
+            showMessage(data.message || 'Đăng ký thất bại', 'danger');
         }
     } catch (error) {
-        console.error('Error:', error); // Thêm log này
-        const messageDiv = document.getElementById('message');
-        messageDiv.textContent = error.message || 'Có lỗi xảy ra';
-        messageDiv.className = 'alert alert-danger show';
+        console.error('Error:', error);
+        showMessage('Có lỗi xảy ra, vui lòng thử lại sau', 'danger');
     }
 }
 
-function showMessage(message, type = 'error') {
+function showMessage(message, type = 'danger') {
     const messageDiv = document.getElementById('message');
     messageDiv.textContent = message;
     messageDiv.className = `alert alert-${type} show`;
     
-    // Tự động ẩn thông báo sau 3 giây
-    setTimeout(() => {
-        messageDiv.className = messageDiv.className.replace('show', '');
-    }, 3000);
+    // Tự động ẩn thông báo sau 3 giây nếu là thông báo lỗi
+    if (type === 'danger') {
+        setTimeout(() => {
+            messageDiv.className = messageDiv.className.replace('show', '');
+        }, 3000);
+    }
 }

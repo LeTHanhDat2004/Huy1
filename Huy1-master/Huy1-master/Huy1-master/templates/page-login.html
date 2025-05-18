@@ -31,7 +31,7 @@
                                         <div class="form-group">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <label><strong>Username</strong></label>
-                                            <input type="text" name="username" class="form-control" value="{{ request.form.get('username', '') }}" required>
+                                            <input type="text" name="username" class="form-control" value="{{ request.form.get('user', '') }}" required>
                                         </div>
                                         <div class="form-group">
                                             <label><strong>Password</strong></label>
@@ -70,26 +70,41 @@
     ***********************************-->
     <script src="{{ url_for('static', filename='js/TWS.js') }}"></script>
     <script>
-    // Chỉ xử lý form login, không chạy checkAuth
-    async function handleLogin(event) {
-        event.preventDefault();
-        const username = document.querySelector('input[name="username"]').value;
-        const password = document.querySelector('input[name="password"]').value;
-        try {
-            await login(username, password);
-        } catch (error) {
-            console.error('Login failed:', error);
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'alert alert-danger';
-            errorDiv.textContent = 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
-            document.querySelector('.auth-form').insertBefore(errorDiv, document.querySelector('form'));
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof TWS === 'undefined') {
+            console.error('TWS chưa được khởi tạo');
+            return;
         }
-    }
-    
-    // Không chạy checkAuth() trên trang login
-    if (window.location.pathname !== '/page-login' && window.location.pathname !== '/login') {
-        document.addEventListener('DOMContentLoaded', checkAuth);
-    }
+
+        window.handleLogin = function(event) {
+            event.preventDefault();
+            
+            // Lấy form elements bằng name
+            const form = event.target;
+            const username = form.querySelector('input[name="username"]');
+            const password = form.querySelector('input[name="password"]');
+            const rememberMe = form.querySelector('#basic_checkbox_1');
+            const csrfToken = form.querySelector('input[name="csrf_token"]');
+            
+            // Kiểm tra elements tồn tại trước khi lấy value
+            if (!username || !password || !csrfToken) {
+                console.error('Không tìm thấy các trường form cần thiết');
+                return;
+            }
+            
+            TWS.login({
+                username: username.value.trim(),
+                password: password.value,
+                rememberMe: rememberMe ? rememberMe.checked : false,
+                csrfToken: csrfToken.value
+            })
+            .then(success => {
+                if (success) {
+                    window.location.href = '/';
+                }
+            });
+        };
+    });
     </script>
 </body>
 </html>
