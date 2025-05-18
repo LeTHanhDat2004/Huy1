@@ -6,15 +6,22 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Edumin - Bootstrap Admin Dashboard </title>
+    <title>Edit Employee</title>
     <!-- Favicon icon -->
-    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon.png">
-    <link rel="stylesheet" href="vendor/bootstrap-select/dist/css/bootstrap-select.min.css">
-    <link rel="stylesheet" href="css/style.css">
-	
-	<!-- Pick date -->
-    <link rel="stylesheet" href="vendor/pickadate/themes/default.css">
-    <link rel="stylesheet" href="vendor/pickadate/themes/default.date.css">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/favicon.png') }}">
+
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-select/dist/css/bootstrap-select.min.css') }}">
+    <link href="{{ url_for('static', filename='vendor/datatables/css/jquery.dataTables.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+  
+    
+	<!-- Datatable -->
+    <link href="{{ url_for('serve_vendor', filename='datatables/css/jquery.dataTables.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('serve_css', filename='style.css') }}">
+
 
 </head>
 
@@ -383,24 +390,24 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta2/dist/js/bootstrap-select.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta2/dist/js/i18n/defaults-*.min.js"></script>
-    
-    <script src="vendor/global/global.min.js"></script>
-	<script src="vendor/bootstrap-select/dist/js/bootstrap-select.min.js"></script>
-    <script src="js/custom.min.js"></script>
-	<script src="js/dlabnav-init.js"></script>
 
-	<!-- Svganimation scripts -->
-    <script src="vendor/svganimation/vivus.min.js"></script>
-    <script src="vendor/svganimation/svg.animation.js"></script>
-    <script src="js/styleSwitcher.js"></script>
-	
-	<!-- pickdate -->
-    <script src="vendor/pickadate/picker.js"></script>
-    <script src="vendor/pickadate/picker.time.js"></script>
-    <script src="vendor/pickadate/picker.date.js"></script>
-	
-	<!-- Pickdate -->
-    <script src="js/plugins-init/pickadate-init.js"></script>
+    <script src="{{ url_for('static', filename='vendor/global/global.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/bootstrap-select/dist/js/bootstrap-select.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/custom.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dlabnav-init.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/svganimation/vivus.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/svganimation/svg.animation.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/styleSwitcher.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/plugins-init/pickadate-init.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/pickadate/picker.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/pickadate/picker.time.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/pickadate/picker.date.js') }}"></script>
+
+    <script>
+        $(window).on('load', function() {
+            $('#preloader').fadeOut();
+        });
+    </script>
 	
 </body>
 </html>
