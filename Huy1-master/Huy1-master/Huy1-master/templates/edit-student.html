@@ -8,13 +8,21 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Edumin - Bootstrap Admin Dashboard </title>
     <!-- Favicon icon -->
-    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon.png">
-    <link rel="stylesheet" href="vendor/bootstrap-select/dist/css/bootstrap-select.min.css">
-    <link rel="stylesheet" href="css/style.css">
-	
-	<!-- Pick date -->
-    <link rel="stylesheet" href="vendor/pickadate/themes/default.css">
-    <link rel="stylesheet" href="vendor/pickadate/themes/default.date.css">
+    <!-- Trong phần head, thay đổi các link -->
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='images/favicon.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-select/dist/css/bootstrap-select.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- Pick date links -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/pickadate/themes/default.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/pickadate/themes/default.date.css') }}">
+    
+    <!-- Trong phần nav-header, thay đổi các img -->
+    <a href="{{ url_for('dashboard') }}" class="brand-logo">
+        <img class="logo-abbr" src="{{ url_for('static', filename='images/logo-white.png') }}" alt="">
+        <img class="logo-compact" src="{{ url_for('static', filename='images/logo-text-white.png') }}" alt="">
+        <img class="brand-title" src="{{ url_for('static', filename='images/logo-text-white.png') }}" alt="">
+    </a>
 
 </head>
 
@@ -43,7 +51,7 @@
             Nav header start
         ***********************************-->
         <div class="nav-header">
-            <a href="index.html" class="brand-logo">
+            <a href="{{ url_for('dashboard') }}" class="brand-logo">
                 <img class="logo-abbr" src="images/logo-white.png" alt="">
                 <img class="logo-compact" src="images/logo-text-white.png" alt="">
                 <img class="brand-title" src="images/logo-text-white.png" alt="">
@@ -181,7 +189,7 @@
     <div class="dlabnav-scroll">
         <ul class="metismenu" id="menu">
             <li class="nav-label first">Main Menu</li>
-            <li><a href="{{ url_for('index') }}">
+            <li><a href="{{ url_for('dashboard') }}">
                     <i class="la la-home"></i>
                     <span class="nav-text">Dashboard</span>
                 </a>
@@ -283,7 +291,7 @@
                     </div>
                     <div class="col-sm-6 p-md-0 justify-content-sm-end mt-2 mt-sm-0 d-flex">
                         <ol class="breadcrumb">
-                            <li class="breadcrumb-item"><a href="index.html">Home</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Home</a></li>
                             <li class="breadcrumb-item active"><a href="javascript:void(0);">Students</a></li>
                             <li class="breadcrumb-item active"><a href="javascript:void(0);">Add Student</a></li>
                         </ol>
@@ -409,19 +417,34 @@
         Scripts
     ***********************************-->
     <!-- Required vendors -->
+<!-- Thay thế các script cũ -->
 <script src="vendor/global/global.min.js"></script>
-	<script src="vendor/bootstrap-select/dist/js/bootstrap-select.min.js"></script>
-    <script src="js/custom.min.js"></script>
-	<script src="js/dlabnav-init.js"></script>
+<script src="vendor/bootstrap-select/dist/js/bootstrap-select.min.js"></script>
+<script src="js/custom.min.js"></script>
+<script src="js/dlabnav-init.js"></script>
 
-	<!-- Svganimation scripts -->
-    <script src="vendor/svganimation/vivus.min.js"></script>
-    <script src="vendor/svganimation/svg.animation.js"></script>
-    <script src="js/styleSwitcher.js"></script>
-	
-	<!-- pickdate -->
-    <script src="vendor/pickadate/picker.js"></script>
-    <script src="vendor/pickadate/picker.time.js"></script>
+<!-- Svganimation scripts -->
+<script src="vendor/svganimation/vivus.min.js"></script>
+<script src="vendor/svganimation/svg.animation.js"></script>
+<script src="js/styleSwitcher.js"></script>
+
+<!-- pickdate -->
+<script src="vendor/pickadate/picker.js"></script>
+
+<!-- Thành các script mới sử dụng url_for() -->
+<script src="{{ url_for('static', filename='vendor/global/global.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/bootstrap-select/dist/js/bootstrap-select.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/custom.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dlabnav-init.js') }}"></script>
+
+<!-- Svganimation scripts -->
+<script src="{{ url_for('static', filename='vendor/svganimation/vivus.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/svganimation/svg.animation.js') }}"></script>
+<script src="{{ url_for('static', filename='js/styleSwitcher.js') }}"></script>
+
+<!-- pickdate -->
+<script src="{{ url_for('static', filename='vendor/pickadate/picker.js') }}"></script>
+<script src="vendor/pickadate/picker.time.js"></script>
     <script src="vendor/pickadate/picker.date.js"></script>
 	
 	<!-- Pickdate -->

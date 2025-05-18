@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, send_from_directory, url_for, redirect,flash,session
+from flask import Flask, request, jsonify, render_template, send_from_directory, url_for, redirect, flash,flash,session
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token, 
     get_jwt_identity, verify_jwt_in_request, get_jwt
@@ -41,8 +41,8 @@ app = Flask(__name__,
             template_folder='templates')
 app.config['JWT_SECRET_KEY'] = JWT_SECRET_KEY
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = JWT_ACCESS_TOKEN_EXPIRES
-app.secret_key = 'Tritran0932523'
-
+app.config['SECRET_KEY'] = 'Tritran'
+app.secret_key = 'tritran0932523'
 # Thay đổi cấu hình CORS
 CORS(app, resources={
     r"/*": {
@@ -58,27 +58,35 @@ csrf = CSRFProtect(app)  # Thêm dòng này để khởi tạo CSRF protection
 # Custom JWT error handlers
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
-    return jsonify({
-        'status': 401,
-        'sub_status': 'token_expired',
-        'msg': 'Token has expired'
-    }), 401
+    # Nếu đây là request API, trả về JSON
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'status': 401,
+            'sub_status': 'token_expired',
+            'msg': 'Token has expired'
+        }), 401
+    # Nếu là request từ web browser, chuyển hướng về trang đăng nhập với tham số next
+    return redirect(url_for('page_login', token_expired='true', next=request.path))
 
 @jwt.invalid_token_loader
 def invalid_token_callback(error):
-    return jsonify({
-        'status': 401,
-        'sub_status': 'invalid_token',
-        'msg': 'Invalid token: ' + str(error)
-    }), 401
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'status': 401,
+            'sub_status': 'invalid_token',
+            'msg': 'Invalid token: ' + str(error)
+        }), 401
+    return redirect(url_for('page_login', error='invalid_token', next=request.path))
 
 @jwt.unauthorized_loader
 def missing_token_callback(error):
-    return jsonify({
-        'status': 401,
-        'sub_status': 'missing_token',
-        'msg': 'Missing token: ' + str(error)
-    }), 401
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'status': 401,
+            'sub_status': 'missing_token',
+            'msg': 'Missing token: ' + str(error)
+        }), 401
+    return redirect(url_for('page_login', error='missing_token', next=request.path))
 
 # Middleware để xử lý token từ query params và form
 @app.before_request
@@ -292,20 +300,38 @@ def dashboard():
         return jsonify({'message': 'Có lỗi xảy ra', 'error': str(e)}), 500
 
 @app.route('/all-employees')
+@jwt_required()
 def all_employees():
     try:
+        # Lấy thông tin người dùng từ token
+        current_username = get_jwt_identity()
+        claims = get_jwt()
+        current_role = claims.get('role', 'employee')
+        
         db = get_db_connection()
         with db.cursor() as cursor:
-            cursor.execute("SELECT EmployeeID, Fullname, DepartmentName, PositionName, Status FROM employees e LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID LEFT JOIN positions p ON e.PositionID = p.PositionID")
+            cursor.execute("SELECT e.EmployeeID, e.Fullname, d.DepartmentName, p.PositionName, e.Status FROM employees e LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID LEFT JOIN positions p ON e.PositionID = p.PositionID")
             employees = cursor.fetchall()
             cursor.execute("SELECT DepartmentID, DepartmentName FROM departments")
             departments = cursor.fetchall()
             cursor.execute("SELECT PositionID, PositionName FROM positions")
             positions = cursor.fetchall()
-        return render_template('all-employees.html', employees=employees, departments=departments, positions=positions)
+        
+        return render_template('all-employees.html', 
+                              employees=employees, 
+                              departments=departments, 
+                              positions=positions,
+                              current_role=current_role)
     except Exception as e:
         app.logger.error(f"Error in all_employees: {str(e)}")
-        return jsonify({'message': 'Lỗi cơ sở dữ liệu'}), 500
+        traceback_str = traceback.format_exc()
+        app.logger.error(f'Traceback: {traceback_str}')
+        
+        # Nếu lỗi JWT thì chuyển về trang đăng nhập
+        if 'jwt' in str(e).lower() or 'token' in str(e).lower():
+            return redirect(url_for('page_login'))
+            
+        return jsonify({'message': 'Lỗi cơ sở dữ liệu', 'error': str(e)}), 500
     finally:
         if 'db' in locals():
             db.close()
@@ -434,12 +460,9 @@ def page_login():
         app.logger.error(f"Unexpected error in login: {str(e)}")
         return jsonify({'message': f'Server error: {str(e)}'}), 500
 
-# Thêm route alias cho route page-login để tương thích với code cũ
-@app.route('/login')
-def login():
-    # Chuyển tiếp bất kỳ query params nào tới page-login
-    if request.args:
-        return redirect(url_for('page_login', **request.args))
+# Thêm alias cho login để tương thích với các template đang sử dụng
+@app.route('/login-redirect')
+def login_redirect():
     return redirect(url_for('page_login'))
 
 @app.route('/admin-dashboard')
@@ -650,30 +673,44 @@ def api_login():
 
             # Kiểm tra trong bảng user_employee (password đã được hash)
             with db.cursor() as cursor:
+                app.logger.debug(f"Checking user_employee table for {username}")
                 cursor.execute("SELECT * FROM user_employee WHERE username = %s", (username,))
                 user = cursor.fetchone()
+                app.logger.debug(f"Found user: {user is not None}")
                 
-                if user and check_password_hash(user['password'], password):
-                    token = create_access_token(
-                        identity=username,
-                        additional_claims={'role': user.get('role', 'employee')}
-                    )
-                    app.logger.info(f"User login successful: {username}")
-                    return jsonify({
-                        'access_token': token,
-                        'role': user.get('role', 'employee'),
-                        'username': username
-                    })
+                if user:
+                    # Debug password info
+                    app.logger.debug(f"Stored password hash (first 20 chars): {user['password'][:20]}...")
+                    
+                    # Kiểm tra password với hash
+                    if check_password_hash(user['password'], password):
+                        app.logger.debug("Password check passed")
+                        token = create_access_token(
+                            identity=username,
+                            additional_claims={'role': user.get('role', 'employee')}
+                        )
+                        app.logger.info(f"User login successful: {username}")
+                        
+                        # Debug thông tin token
+                        app.logger.debug(f"Generated token (first 20 chars): {token[:20]}...")
+                        
+                        return jsonify({
+                            'access_token': token,
+                            'role': user.get('role', 'employee'),
+                            'username': username
+                        })
+                    else:
+                        app.logger.warning(f"Invalid password for user: {username}")
                 
             app.logger.warning(f"Invalid credentials for: {username}")
             return jsonify({'message': 'Invalid credentials'}), 401
         except Exception as e:
-            app.logger.error(f"Database error during API login: {str(e)}")
+            app.logger.error(f"Database error during login: {str(e)}")
             return jsonify({'message': f'Database error: {str(e)}'}), 500
         finally:
             db.close()
     except Exception as e:
-        app.logger.error(f"Unexpected error in API login: {str(e)}")
+        app.logger.error(f"Unexpected error in login: {str(e)}")
         return jsonify({'message': f'Server error: {str(e)}'}), 500
 
 @app.route('/api/employees', methods=['GET'])
@@ -794,6 +831,9 @@ def delete_employee(employee_id):
     try:
         db = get_db_connection()
         with db.cursor() as cursor:
+            # Xóa các bản ghi liên quan trong bảng employee_payroll trước
+            cursor.execute("DELETE FROM employee_payroll WHERE EmployeeID = %s", (employee_id,))
+            # Sau đó mới xóa nhân viên
             cursor.execute("DELETE FROM employees WHERE EmployeeID = %s", (employee_id,))
             db.commit()
         return redirect(url_for('all_employees'))
@@ -809,6 +849,792 @@ def before_request():
     if 'user' in session:
         session.permanent = True
         app.permanent_session_lifetime = timedelta(minutes=30)
+
+@app.route('/edit-employee', defaults={'employee_id': None})
+@app.route('/edit-employee/<int:employee_id>')
+@jwt_required()
+@role_required(['admin'])
+def edit_employee(employee_id):
+    try:
+        if employee_id is None:
+            return redirect(url_for('all_employees'))
+            
+        db = get_db_connection()
+        with db.cursor() as cursor:
+            cursor.execute("SELECT * FROM employees WHERE EmployeeID = %s", (employee_id,))
+            employee = cursor.fetchone()
+            
+            cursor.execute("SELECT DepartmentID, DepartmentName FROM departments")
+            departments = cursor.fetchall()
+            
+            cursor.execute("SELECT PositionID, PositionName FROM positions")
+            positions = cursor.fetchall()
+            
+        return render_template('edit-employee.html', 
+                             employee=employee, 
+                             departments=departments, 
+                             positions=positions)
+    except Exception as e:
+        app.logger.error(f"Error in edit_employee: {str(e)}")
+        return jsonify({'message': 'Lỗi cơ sở dữ liệu'}), 500
+    finally:
+        if 'db' in locals():
+            db.close()
+
+@app.route('/employee-profile')
+@app.route('/employee-profile/<int:employee_id>')
+def employee_profile(employee_id=None):
+    try:
+        # Verify JWT to ensure only authenticated users can access
+        verify_jwt_in_request()
+        current_username = get_jwt_identity()
+        claims = get_jwt()
+        current_role = claims.get('role', 'employee')
+        
+        db = get_db_connection()
+        with db.cursor() as cursor:
+            if employee_id:
+                # Nếu có employee_id, lấy thông tin nhân viên cụ thể
+                cursor.execute("SELECT * FROM employees WHERE EmployeeID = %s", (employee_id,))
+            else:
+                # Nếu không có employee_id, lấy thông tin của user hiện tại
+                cursor.execute("SELECT * FROM user_employee WHERE username = %s", (current_username,))
+                user = cursor.fetchone()
+                # Nếu user có employee_id thì lấy thông tin từ bảng employees
+                if user and 'employee_id' in user:
+                    cursor.execute("SELECT * FROM employees WHERE EmployeeID = %s", (user['employee_id'],))
+                    
+            employee = cursor.fetchone()
+            
+            # Lấy thông tin phòng ban, chức vụ
+            departments = []
+            positions = []
+            cursor.execute("SELECT * FROM departments")
+            departments = cursor.fetchall()
+            cursor.execute("SELECT * FROM positions")
+            positions = cursor.fetchall()
+            
+        return render_template('employee-profile.html', 
+                              employee=employee, 
+                              departments=departments,
+                              positions=positions,
+                              current_role=current_role)
+    except Exception as e:
+        app.logger.error(f"Error in employee_profile: {str(e)}")
+        traceback_str = traceback.format_exc()
+        app.logger.error(f'Traceback: {traceback_str}')
+        
+        # Nếu lỗi JWT thì chuyển về trang đăng nhập
+        if 'jwt' in str(e).lower() or 'token' in str(e).lower():
+            return redirect(url_for('page_login'))
+            
+        return jsonify({'message': 'Lỗi cơ sở dữ liệu', 'error': str(e)}), 500
+    finally:
+        if 'db' in locals():
+            db.close()
+
+@app.route('/payroll_details')
+@app.route('/payroll_details/<int:employee_id>')
+def payroll_details(employee_id=None):
+    try:
+        # Verify JWT to ensure only authenticated users can access
+        verify_jwt_in_request()
+        current_username = get_jwt_identity()
+        claims = get_jwt()
+        current_role = claims.get('role', 'employee')
+        
+        db = get_db_connection()
+        with db.cursor() as cursor:
+            # Lấy danh sách nhân viên
+            cursor.execute("SELECT * FROM employees")
+            employees = cursor.fetchall()
+            
+            # Lấy danh sách phòng ban
+            cursor.execute("SELECT * FROM departments")
+            departments = cursor.fetchall()
+            
+            # Lấy danh sách vị trí
+            cursor.execute("SELECT * FROM positions")
+            positions = cursor.fetchall()
+            
+            # Lấy thông tin lương
+            if employee_id and current_role in ['admin', 'payroll_manager']:
+                cursor.execute("""
+                    SELECT s.*, e.FullName, d.DepartmentName, p.PositionName
+                    FROM salaries s
+                    JOIN employees e ON s.EmployeeID = e.EmployeeID
+                    LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID
+                    LEFT JOIN positions p ON e.PositionID = p.PositionID
+                    WHERE s.EmployeeID = %s
+                """, (employee_id,))
+            elif current_role in ['admin', 'payroll_manager']:
+                cursor.execute("""
+                    SELECT s.*, e.FullName, d.DepartmentName, p.PositionName
+                    FROM salaries s
+                    JOIN employees e ON s.EmployeeID = e.EmployeeID
+                    LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID
+                    LEFT JOIN positions p ON e.PositionID = p.PositionID
+                """)
+            else:
+                # Nhân viên thường chỉ xem được thông tin lương của mình
+                cursor.execute("""
+                    SELECT s.*, e.FullName, d.DepartmentName, p.PositionName
+                    FROM salaries s
+                    JOIN employees e ON s.EmployeeID = e.EmployeeID
+                    LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID
+                    LEFT JOIN positions p ON e.PositionID = p.PositionID
+                    JOIN user_employee u ON u.username = %s
+                    WHERE u.username = %s
+                """, (current_username, current_username))
+            
+            payrolls = cursor.fetchall()
+            
+            # Cũng kiểm tra bảng employee_payroll nếu có
+            try:
+                cursor.execute("SELECT * FROM employee_payroll")
+                employee_payrolls = cursor.fetchall()
+            except:
+                employee_payrolls = []
+                
+        return render_template('payroll-details.html', 
+                              payrolls=payrolls,
+                              employees=employees,
+                              departments=departments,
+                              positions=positions,
+                              employee_payrolls=employee_payrolls,
+                              current_role=current_role)
+    except Exception as e:
+        app.logger.error(f"Error in payroll_details: {str(e)}")
+        traceback_str = traceback.format_exc()
+        app.logger.error(f'Traceback: {traceback_str}')
+        
+        # Nếu lỗi JWT thì chuyển về trang đăng nhập
+        if 'jwt' in str(e).lower() or 'token' in str(e).lower():
+            return redirect(url_for('page_login'))
+            
+        return jsonify({'message': 'Lỗi cơ sở dữ liệu', 'error': str(e)}), 500
+    finally:
+        if 'db' in locals():
+            db.close()
+
+@app.route('/salary_history')
+@app.route('/salary_history/<int:employee_id>')
+def salary_history(employee_id=None):
+    try:
+        # Verify JWT to ensure only authenticated users can access
+        verify_jwt_in_request()
+        current_username = get_jwt_identity()
+        claims = get_jwt()
+        current_role = claims.get('role', 'employee')
+        
+        db = get_db_connection()
+        with db.cursor() as cursor:
+            # Lấy thông tin lương theo tháng
+            if employee_id and current_role in ['admin', 'payroll_manager']:
+                cursor.execute("""
+                    SELECT s.*, e.FullName, d.DepartmentName, p.PositionName
+                    FROM salaries s
+                    JOIN employees e ON s.EmployeeID = e.EmployeeID
+                    LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID
+                    LEFT JOIN positions p ON e.PositionID = p.PositionID
+                    WHERE s.EmployeeID = %s
+                    ORDER BY s.SalaryMonth DESC
+                """, (employee_id,))
+            elif current_role in ['admin', 'payroll_manager']:
+                cursor.execute("""
+                    SELECT s.*, e.FullName, d.DepartmentName, p.PositionName
+                    FROM salaries s
+                    JOIN employees e ON s.EmployeeID = e.EmployeeID
+                    LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID
+                    LEFT JOIN positions p ON e.PositionID = p.PositionID
+                    ORDER BY s.SalaryMonth DESC
+                """)
+            else:
+                # Nhân viên thường chỉ xem được thông tin lương của mình
+                cursor.execute("""
+                    SELECT s.*, e.FullName, d.DepartmentName, p.PositionName
+                    FROM salaries s
+                    JOIN employees e ON s.EmployeeID = e.EmployeeID
+                    LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID
+                    LEFT JOIN positions p ON e.PositionID = p.PositionID
+                    JOIN user_employee u ON u.username = %s
+                    WHERE u.username = %s
+                    ORDER BY s.SalaryMonth DESC
+                """, (current_username, current_username))
+            
+            salary_history = cursor.fetchall()
+            
+            # Lấy danh sách nhân viên và phòng ban (chỉ cho admin/payroll manager)
+            employees = []
+            departments = []
+            if current_role in ['admin', 'payroll_manager']:
+                cursor.execute("SELECT * FROM employees")
+                employees = cursor.fetchall()
+                cursor.execute("SELECT * FROM departments")
+                departments = cursor.fetchall()
+                
+            # Lấy thông tin chức vụ
+            cursor.execute("SELECT * FROM positions")
+            positions = cursor.fetchall()
+                
+        return render_template('salary-history.html', 
+                             salary_history=salary_history,
+                             employees=employees,
+                             departments=departments,
+                             positions=positions,
+                             current_role=current_role)
+    except Exception as e:
+        app.logger.error(f"Error in salary_history: {str(e)}")
+        traceback_str = traceback.format_exc()
+        app.logger.error(f'Traceback: {traceback_str}')
+        
+        # Nếu lỗi JWT thì chuyển về trang đăng nhập
+        if 'jwt' in str(e).lower() or 'token' in str(e).lower():
+            return redirect(url_for('page_login'))
+            
+        return jsonify({'message': 'Lỗi cơ sở dữ liệu', 'error': str(e)}), 500
+    finally:
+        if 'db' in locals():
+            db.close()
+
+@app.route('/attendance_records')
+@app.route('/attendance_records/<int:employee_id>')
+def attendance_records(employee_id=None):
+    try:
+        # Verify JWT to ensure only authenticated users can access
+        verify_jwt_in_request()
+        current_username = get_jwt_identity()
+        claims = get_jwt()
+        current_role = claims.get('role', 'employee')
+        
+        db = get_db_connection()
+        with db.cursor() as cursor:
+            # Lấy thông tin chấm công
+            if employee_id and current_role in ['admin', 'hr_manager']:
+                cursor.execute("""
+                    SELECT a.*, e.FullName, d.DepartmentName, p.PositionName
+                    FROM attendance a
+                    JOIN employees e ON a.EmployeeID = e.EmployeeID
+                    LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID
+                    LEFT JOIN positions p ON e.PositionID = p.PositionID
+                    WHERE a.EmployeeID = %s
+                    ORDER BY a.AttendanceMonth DESC
+                """, (employee_id,))
+            elif current_role in ['admin', 'hr_manager']:
+                cursor.execute("""
+                    SELECT a.*, e.FullName, d.DepartmentName, p.PositionName
+                    FROM attendance a
+                    JOIN employees e ON a.EmployeeID = e.EmployeeID
+                    LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID
+                    LEFT JOIN positions p ON e.PositionID = p.PositionID
+                    ORDER BY a.AttendanceMonth DESC
+                """)
+            else:
+                # Nhân viên chỉ xem được chấm công của mình
+                cursor.execute("""
+                    SELECT a.*, e.FullName, d.DepartmentName, p.PositionName
+                    FROM attendance a
+                    JOIN employees e ON a.EmployeeID = e.EmployeeID
+                    LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID
+                    LEFT JOIN positions p ON e.PositionID = p.PositionID
+                    JOIN user_employee u ON u.username = %s
+                    WHERE u.username = %s
+                    ORDER BY a.AttendanceMonth DESC
+                """, (current_username, current_username))
+            
+            attendance_data = cursor.fetchall()
+            
+            # Lấy thông tin nhân viên, phòng ban (chỉ cho admin/hr_manager)
+            employees = []
+            departments = []
+            if current_role in ['admin', 'hr_manager']:
+                cursor.execute("SELECT * FROM employees")
+                employees = cursor.fetchall()
+                cursor.execute("SELECT * FROM departments")
+                departments = cursor.fetchall()
+                
+            # Lấy thông tin chức vụ
+            cursor.execute("SELECT * FROM positions")
+            positions = cursor.fetchall()
+                
+        return render_template('attendance-records.html', 
+                             attendance_data=attendance_data,
+                             employees=employees,
+                             departments=departments,
+                             positions=positions,
+                             current_role=current_role)
+    except Exception as e:
+        app.logger.error(f"Error in attendance_records: {str(e)}")
+        traceback_str = traceback.format_exc()
+        app.logger.error(f'Traceback: {traceback_str}')
+        
+        # Nếu lỗi JWT thì chuyển về trang đăng nhập
+        if 'jwt' in str(e).lower() or 'token' in str(e).lower():
+            return redirect(url_for('page_login'))
+            
+        return jsonify({'message': 'Lỗi cơ sở dữ liệu', 'error': str(e)}), 500
+    finally:
+        if 'db' in locals():
+            db.close()
+
+@app.route('/all_departments')
+def all_departments():
+    try:
+        # Verify JWT to ensure only authenticated users can access
+        verify_jwt_in_request()
+        current_username = get_jwt_identity()
+        claims = get_jwt()
+        current_role = claims.get('role', 'employee')
+        
+        if current_role not in ['admin', 'hr_manager']:
+            return jsonify({'message': 'Không có quyền truy cập'}), 403
+            
+        db = get_db_connection()
+        with db.cursor() as cursor:
+            cursor.execute("SELECT * FROM departments")
+            departments = cursor.fetchall()
+                
+        return render_template('all-departments.html', 
+                             departments=departments,
+                             current_role=current_role)
+    except Exception as e:
+        app.logger.error(f"Error in all_departments: {str(e)}")
+        traceback_str = traceback.format_exc()
+        app.logger.error(f'Traceback: {traceback_str}')
+        
+        # Nếu lỗi JWT thì chuyển về trang đăng nhập
+        if 'jwt' in str(e).lower() or 'token' in str(e).lower():
+            return redirect(url_for('page_login'))
+            
+        return jsonify({'message': 'Lỗi cơ sở dữ liệu', 'error': str(e)}), 500
+    finally:
+        if 'db' in locals():
+            db.close()
+
+@app.route('/add_department', methods=['GET', 'POST'])
+def add_department():
+    try:
+        # Verify JWT to ensure only authenticated users can access
+        verify_jwt_in_request()
+        current_username = get_jwt_identity()
+        claims = get_jwt()
+        current_role = claims.get('role', 'employee')
+        
+        if current_role not in ['admin', 'hr_manager']:
+            return jsonify({'message': 'Không có quyền truy cập'}), 403
+            
+        if request.method == 'POST':
+            department_name = request.form.get('DepartmentName')
+            
+            db = get_db_connection()
+            with db.cursor() as cursor:
+                # Tìm ID lớn nhất để tạo ID mới
+                cursor.execute("SELECT MAX(DepartmentID) AS max_id FROM departments")
+                result = cursor.fetchone()
+                new_id = 1
+                if result and result['max_id']:
+                    new_id = result['max_id'] + 1
+                    
+                cursor.execute("""
+                    INSERT INTO departments (DepartmentID, DepartmentName)
+                    VALUES (%s, %s)
+                """, (new_id, department_name))
+                db.commit()
+                
+            return redirect(url_for('all_departments'))
+            
+        return render_template('add-department.html', 
+                             current_role=current_role)
+    except Exception as e:
+        app.logger.error(f"Error in add_department: {str(e)}")
+        traceback_str = traceback.format_exc()
+        app.logger.error(f'Traceback: {traceback_str}')
+        
+        # Nếu lỗi JWT thì chuyển về trang đăng nhập
+        if 'jwt' in str(e).lower() or 'token' in str(e).lower():
+            return redirect(url_for('page_login'))
+            
+        return jsonify({'message': 'Lỗi cơ sở dữ liệu', 'error': str(e)}), 500
+    finally:
+        if 'db' in locals():
+            db.close()
+
+@app.route('/edit_department', defaults={'department_id': None})
+@app.route('/edit_department/<int:department_id>', methods=['GET', 'POST'])
+def edit_department(department_id=None):
+    try:
+        # Verify JWT to ensure only authenticated users can access
+        verify_jwt_in_request()
+        current_username = get_jwt_identity()
+        claims = get_jwt()
+        current_role = claims.get('role', 'employee')
+        
+        if current_role not in ['admin', 'hr_manager']:
+            return jsonify({'message': 'Không có quyền truy cập'}), 403
+            
+        if department_id is None:
+            return redirect(url_for('all_departments'))
+            
+        db = get_db_connection()
+        
+        if request.method == 'POST':
+            department_name = request.form.get('DepartmentName')
+            
+            with db.cursor() as cursor:
+                cursor.execute("""
+                    UPDATE departments
+                    SET DepartmentName = %s
+                    WHERE DepartmentID = %s
+                """, (department_name, department_id))
+                db.commit()
+                
+            return redirect(url_for('all_departments'))
+            
+        # GET: Lấy thông tin phòng ban để hiển thị form edit
+        with db.cursor() as cursor:
+            cursor.execute("SELECT * FROM departments WHERE DepartmentID = %s", (department_id,))
+            department = cursor.fetchone()
+            
+            if not department:
+                return redirect(url_for('all_departments'))
+                
+        return render_template('edit-department.html', 
+                             department=department,
+                             current_role=current_role)
+    except Exception as e:
+        app.logger.error(f"Error in edit_department: {str(e)}")
+        traceback_str = traceback.format_exc()
+        app.logger.error(f'Traceback: {traceback_str}')
+        
+        # Nếu lỗi JWT thì chuyển về trang đăng nhập
+        if 'jwt' in str(e).lower() or 'token' in str(e).lower():
+            return redirect(url_for('page_login'))
+            
+        return jsonify({'message': 'Lỗi cơ sở dữ liệu', 'error': str(e)}), 500
+    finally:
+        if 'db' in locals():
+            db.close()
+
+@app.route('/user_roles')
+def user_roles():
+    try:
+        # Verify JWT to ensure only authenticated users can access
+        verify_jwt_in_request()
+        current_username = get_jwt_identity()
+        claims = get_jwt()
+        current_role = claims.get('role', 'employee')
+        
+        if current_role != 'admin':
+            return jsonify({'message': 'Chỉ admin mới có quyền truy cập'}), 403
+            
+        db = get_db_connection()
+        with db.cursor() as cursor:
+            # Lấy thông tin từ bảng roles
+            cursor.execute("SELECT * FROM roles")
+            roles = cursor.fetchall()
+            
+            # Lấy danh sách người dùng và quyền tương ứng
+            cursor.execute("""
+                SELECT u.*, r.role_name, r.description 
+                FROM user_employee u
+                LEFT JOIN roles r ON u.role = r.role_name
+            """)
+            users = cursor.fetchall()
+                
+        return render_template('user-roles.html', 
+                             roles=roles,
+                             users=users,
+                             current_role=current_role)
+    except Exception as e:
+        app.logger.error(f"Error in user_roles: {str(e)}")
+        traceback_str = traceback.format_exc()
+        app.logger.error(f'Traceback: {traceback_str}')
+        
+        # Nếu lỗi JWT thì chuyển về trang đăng nhập
+        if 'jwt' in str(e).lower() or 'token' in str(e).lower():
+            return redirect(url_for('page_login'))
+            
+        return jsonify({'message': 'Lỗi cơ sở dữ liệu', 'error': str(e)}), 500
+    finally:
+        if 'db' in locals():
+            db.close()
+
+@app.route('/permissions')
+def permissions():
+    try:
+        # Verify JWT to ensure only authenticated users can access
+        verify_jwt_in_request()
+        current_username = get_jwt_identity()
+        claims = get_jwt()
+        current_role = claims.get('role', 'employee')
+        
+        if current_role != 'admin':
+            return jsonify({'message': 'Chỉ admin mới có quyền truy cập'}), 403
+            
+        # Tạo danh sách quyền theo vai trò (hard-coded vì chưa có bảng tương ứng)
+        permissions_data = {
+            'admin': ['dashboard', 'employee_management', 'payroll_management', 'attendance_management', 'department_management', 'job_title_management', 'user_role_management', 'permission_management', 'access_log_management'],
+            'hr_manager': ['dashboard', 'employee_management', 'attendance_management', 'department_management'],
+            'payroll_manager': ['dashboard', 'payroll_management'],
+            'employee': ['dashboard', 'profile', 'attendance_view', 'payroll_view']
+        }
+                
+        return render_template('permissions.html', 
+                             permissions=permissions_data,
+                             current_role=current_role)
+    except Exception as e:
+        app.logger.error(f"Error in permissions: {str(e)}")
+        traceback_str = traceback.format_exc()
+        app.logger.error(f'Traceback: {traceback_str}')
+        
+        # Nếu lỗi JWT thì chuyển về trang đăng nhập
+        if 'jwt' in str(e).lower() or 'token' in str(e).lower():
+            return redirect(url_for('page_login'))
+            
+        return jsonify({'message': 'Lỗi cơ sở dữ liệu', 'error': str(e)}), 500
+
+@app.route('/access_logs')
+def access_logs():
+    try:
+        # Verify JWT to ensure only authenticated users can access
+        verify_jwt_in_request()
+        current_username = get_jwt_identity()
+        claims = get_jwt()
+        current_role = claims.get('role', 'employee')
+        
+        if current_role != 'admin':
+            return jsonify({'message': 'Chỉ admin mới có quyền truy cập'}), 403
+            
+        # Vì chưa có bảng log, tạo dữ liệu mẫu
+        access_logs_data = [
+            {
+                'id': 1,
+                'username': 'thach',
+                'access_time': datetime.now() - timedelta(hours=1),
+                'ip_address': '127.0.0.1',
+                'action': 'Login',
+                'status': 'Success'
+            },
+            {
+                'id': 2,
+                'username': 'admin',
+                'access_time': datetime.now() - timedelta(hours=2),
+                'ip_address': '127.0.0.1',
+                'action': 'View employee list',
+                'status': 'Success'
+            },
+            {
+                'id': 3,
+                'username': 'employee1',
+                'access_time': datetime.now() - timedelta(hours=3),
+                'ip_address': '127.0.0.1',
+                'action': 'Login',
+                'status': 'Failed'
+            },
+        ]
+                
+        return render_template('access-logs.html', 
+                             access_logs=access_logs_data,
+                             current_role=current_role)
+    except Exception as e:
+        app.logger.error(f"Error in access_logs: {str(e)}")
+        traceback_str = traceback.format_exc()
+        app.logger.error(f'Traceback: {traceback_str}')
+        
+        # Nếu lỗi JWT thì chuyển về trang đăng nhập
+        if 'jwt' in str(e).lower() or 'token' in str(e).lower():
+            return redirect(url_for('page_login'))
+            
+        return jsonify({'message': 'Lỗi cơ sở dữ liệu', 'error': str(e)}), 500
+
+@app.route('/all_job_titles')
+def all_job_titles():
+    try:
+        # Verify JWT to ensure only authenticated users can access
+        verify_jwt_in_request()
+        current_username = get_jwt_identity()
+        claims = get_jwt()
+        current_role = claims.get('role', 'employee')
+        
+        if current_role not in ['admin', 'hr_manager']:
+            return jsonify({'message': 'Không có quyền truy cập'}), 403
+            
+        db = get_db_connection()
+        with db.cursor() as cursor:
+            cursor.execute("SELECT * FROM positions")
+            positions = cursor.fetchall()
+                
+        return render_template('job-titles.html', 
+                             positions=positions,
+                             current_role=current_role)
+    except Exception as e:
+        app.logger.error(f"Error in all_job_titles: {str(e)}")
+        traceback_str = traceback.format_exc()
+        app.logger.error(f'Traceback: {traceback_str}')
+        
+        # Nếu lỗi JWT thì chuyển về trang đăng nhập
+        if 'jwt' in str(e).lower() or 'token' in str(e).lower():
+            return redirect(url_for('page_login'))
+            
+        return jsonify({'message': 'Lỗi cơ sở dữ liệu', 'error': str(e)}), 500
+    finally:
+        if 'db' in locals():
+            db.close()
+
+@app.route('/manage_departments')
+def manage_departments():
+    try:
+        # Verify JWT to ensure only authenticated users can access
+        verify_jwt_in_request()
+        current_username = get_jwt_identity()
+        claims = get_jwt()
+        current_role = claims.get('role', 'employee')
+        
+        if current_role not in ['admin', 'hr_manager']:
+            return jsonify({'message': 'Không có quyền truy cập'}), 403
+            
+        db = get_db_connection()
+        with db.cursor() as cursor:
+            cursor.execute("SELECT * FROM departments")
+            departments = cursor.fetchall()
+                
+        return render_template('manage-departments.html', 
+                             departments=departments,
+                             current_role=current_role)
+    except Exception as e:
+        app.logger.error(f"Error in manage_departments: {str(e)}")
+        traceback_str = traceback.format_exc()
+        app.logger.error(f'Traceback: {traceback_str}')
+        
+        # Nếu lỗi JWT thì chuyển về trang đăng nhập
+        if 'jwt' in str(e).lower() or 'token' in str(e).lower():
+            return redirect(url_for('page_login'))
+            
+        return jsonify({'message': 'Lỗi cơ sở dữ liệu', 'error': str(e)}), 500
+    finally:
+        if 'db' in locals():
+            db.close()
+
+@app.route('/manage_job_titles')
+def manage_job_titles():
+    try:
+        # Verify JWT to ensure only authenticated users can access
+        verify_jwt_in_request()
+        current_username = get_jwt_identity()
+        claims = get_jwt()
+        current_role = claims.get('role', 'employee')
+        
+        if current_role not in ['admin', 'hr_manager']:
+            return jsonify({'message': 'Không có quyền truy cập'}), 403
+            
+        db = get_db_connection()
+        with db.cursor() as cursor:
+            cursor.execute("SELECT * FROM positions")
+            positions = cursor.fetchall()
+                
+        return render_template('manage-job-titles.html', 
+                             positions=positions,
+                             current_role=current_role)
+    except Exception as e:
+        app.logger.error(f"Error in manage_job_titles: {str(e)}")
+        traceback_str = traceback.format_exc()
+        app.logger.error(f'Traceback: {traceback_str}')
+        
+        # Nếu lỗi JWT thì chuyển về trang đăng nhập
+        if 'jwt' in str(e).lower() or 'token' in str(e).lower():
+            return redirect(url_for('page_login'))
+            
+        return jsonify({'message': 'Lỗi cơ sở dữ liệu', 'error': str(e)}), 500
+    finally:
+        if 'db' in locals():
+            db.close()
+
+# Thêm các route cho các báo cáo
+@app.route('/employee_summary')
+def employee_summary():
+    try:
+        verify_jwt_in_request()
+        return render_template('employee-summary.html')
+    except:
+        return redirect(url_for('page_login'))
+
+@app.route('/payroll_report')
+def payroll_report():
+    try:
+        verify_jwt_in_request()
+        return render_template('payroll-report.html')
+    except:
+        return redirect(url_for('page_login'))
+
+@app.route('/dividend_report')
+def dividend_report():
+    try:
+        verify_jwt_in_request()
+        return render_template('dividend-report.html')
+    except:
+        return redirect(url_for('page_login'))
+
+@app.route('/comparative_charts')
+def comparative_charts():
+    try:
+        verify_jwt_in_request()
+        return render_template('comparative-charts.html')
+    except:
+        return redirect(url_for('page_login'))
+
+# Thêm các route cho thông báo
+@app.route('/work_anniversary')
+def work_anniversary():
+    try:
+        verify_jwt_in_request()
+        return render_template('work-anniversary.html')
+    except:
+        return redirect(url_for('page_login'))
+
+@app.route('/leave_alerts')
+def leave_alerts():
+    try:
+        verify_jwt_in_request()
+        return render_template('leave-alerts.html')
+    except:
+        return redirect(url_for('page_login'))
+
+@app.route('/payroll_alerts')
+def payroll_alerts():
+    try:
+        verify_jwt_in_request()
+        return render_template('payroll-alerts.html')
+    except:
+        return redirect(url_for('page_login'))
+
+@app.route('/salary_statements')
+def salary_statements():
+    try:
+        verify_jwt_in_request()
+        return render_template('salary-statements.html')
+    except:
+        return redirect(url_for('page_login'))
+
+# Thêm route index để tương thích với các template sử dụng url_for('index')
+@app.route('/index')
+def index_redirect():
+    return redirect(url_for('dashboard'))
+
+# Thêm lại route login để tương thích với các template đang sử dụng url_for('login')
+@app.route('/login')
+def login_page():
+    # Chuyển tiếp bất kỳ query params nào tới page-login
+    if request.args:
+        return redirect(url_for('page_login', **request.args))
+    return redirect(url_for('page_login'))
+
+# Tạo thêm một alias cho url_for('login')
+@app.route('/login-alias')
+def login():
+    # Chuyển tiếp bất kỳ query params nào tới page-login
+    if request.args:
+        return redirect(url_for('page_login', **request.args))
+    return redirect(url_for('page_login'))
 
 if __name__ == '__main__':
     app.run(debug=True)

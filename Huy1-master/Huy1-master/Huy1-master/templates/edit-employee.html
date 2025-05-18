@@ -50,7 +50,7 @@
             Nav header start
         ***********************************-->
         <div class="nav-header">
-            <a href="index.html" class="brand-logo">
+            <a href="{{ url_for('dashboard') }}" class="brand-logo">
                 <img class="logo-abbr" src="images/logo-white.png" alt="">
                 <img class="logo-compact" src="images/logo-text-white.png" alt="">
                 <img class="brand-title" src="images/logo-text-white.png" alt="">
@@ -184,7 +184,7 @@
     <div class="dlabnav-scroll">
         <ul class="metismenu" id="menu">
             <li class="nav-label first">Main Menu</li>
-            <li><a href="{{ url_for('index') }}">
+            <li><a href="{{ url_for('dashboard') }}">
                     <i class="la la-home"></i>
                     <span class="nav-text">Dashboard</span>
                 </a>
@@ -284,7 +284,7 @@
                     </div>
                     <div class="col-sm-6 p-md-0 justify-content-sm-end mt-2 mt-sm-0 d-flex">
                         <ol class="breadcrumb">
-                            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">Home</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Home</a></li>
                             <li class="breadcrumb-item active"><a href="{{ url_for('all_employees') }}">Employee</a></li>
                             <li class="breadcrumb-item active"><a href="{{ url_for('edit_employee') }}">Edit Employee</a></li>
                         </ol>
@@ -304,13 +304,13 @@
 										<div class="col-lg-6 col-md-6 col-sm-12">
 											<div class="form-group">
 												<label class="form-label">Employee ID</label>
-												<input type="text" class="form-control" name="EmployeeID" value="{{ emp.EmployeeID }}" readonly>
+												<input type="text" class="form-control" name="EmployeeID" value="{{ employee.EmployeeID }}" readonly>
                                             </div>
 										</div>
 										<div class="col-lg-6 col-md-6 col-sm-12">
 											<div class="form-group">
 												<label class="form-label">Name</label>
-												<input type="text" class="form-control" value="{{ emp.FullName }}" required name="FullName">
+												<input type="text" class="form-control" value="{{ employee.FullName }}" required name="FullName">
 											</div>
 										</div>
 										<div class="col-lg-6 col-md-6 col-sm-12">
@@ -318,7 +318,7 @@
 												<label class="form-label">Department</label>
 												<select class="form-control" name="DepartmentID" required>
                                                     {% for dept in departments %}
-                                                        <option value="{{ dept.DepartmentID }}" {% if emp.DepartmentID == dept.DepartmentID %}selected{% endif %}>{{ dept.DepartmentName }}</option>
+                                                        <option value="{{ dept.DepartmentID }}" {% if employee.DepartmentID == dept.DepartmentID %}selected{% endif %}>{{ dept.DepartmentName }}</option>
                                                     {% endfor %}
                                                 </select>
 											</div>
@@ -328,7 +328,7 @@
 												<label class="form-label">Position</label>
                                                 <select class="form-control" name="PositionID" required>
                                                     {% for pos in positions %}
-                                                        <option value="{{ pos.PositionID }}" {% if emp.PositionID == pos.PositionID %}selected{% endif %}>{{ pos.PositionName }}</option>
+                                                        <option value="{{ pos.PositionID }}" {% if employee.PositionID == pos.PositionID %}selected{% endif %}>{{ pos.PositionName }}</option>
                                                     {% endfor %}
                                                 </select>
 											</div>
@@ -337,8 +337,8 @@
                                             <div class="form-group">
                                                 <label>Status</label>
                                                 <select class="form-control" name="Status" required>
-                                                    <option value="Active" {% if emp.Status == 'Active' %}selected{% endif %}>Active</option>
-                                                    <option value="Inactive" {% if emp.Status == 'Inactive' %}selected{% endif %}>Inactive</option>
+                                                    <option value="Active" {% if employee.Status == 'Active' %}selected{% endif %}>Active</option>
+                                                    <option value="Inactive" {% if employee.Status == 'Inactive' %}selected{% endif %}>Inactive</option>
                                                 </select>
                                             </div>
                                         </div>

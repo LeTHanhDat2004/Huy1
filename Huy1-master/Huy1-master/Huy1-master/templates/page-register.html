@@ -12,13 +12,19 @@
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
    
     <style>
-        .password-strength { margin-top: 5px; }
+        .password-strength { 
+            margin-top: 5px; 
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
         .loading { display: none; }
         .loading.active { display: inline-block; }
-        .alert { display: none; }
+        .alert { display: none; margin-top: 15px; }
         .alert.show { display: block; animation: fadeIn 0.5s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    </style> <script src="{{ url_for('static', filename='js/register.js') }}"></script>
+        .field-error { border-color: #dc3545 !important; }
+        .field-success { border-color: #28a745 !important; }
+    </style>
 </head>
 <body class="h-100">
     <div class="authincation h-100">
@@ -34,31 +40,38 @@
                                     {% with messages = get_flashed_messages(with_categories=true) %}
                                         {% if messages %}
                                             {% for category, message in messages %}
-                                                <div class="alert alert-{{ category if category else 'info' }}">{{ message }}</div>
+                                                <div class="alert alert-{{ category if category else 'info' }} show">{{ message }}</div>
                                             {% endfor %}
                                         {% endif %}
                                     {% endwith %}
 
-                                    <div id="message" class="alert"></div> <!-- Đây là div mà JS sẽ dùng để hiển thị thông báo -->
+                                    <div id="message" class="alert"></div>
                                     <form id="registerForm" onsubmit="handleRegister(event)" method="post">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <div class="form-group">
-                                            <label><strong>Username</strong></label>
-                                            <input type="text" name="username" class="form-control" required>
+                                            <label><strong>Tên đăng nhập</strong></label>
+                                            <input type="text" name="username" class="form-control" required minlength="3" 
+                                                   placeholder="Nhập tên đăng nhập (ít nhất 3 ký tự)">
+                                            <small class="form-text text-muted">Tên đăng nhập dùng để đăng nhập vào hệ thống</small>
                                         </div>
                                         <div class="form-group">
                                             <label><strong>Họ và tên</strong></label>
-                                            <input type="text" name="fullname" class="form-control" required>
+                                            <input type="text" name="fullname" class="form-control" required 
+                                                   placeholder="Nhập họ và tên đầy đủ">
                                         </div>
                                         <div class="form-group">
                                             <label><strong>Email</strong></label>
-                                            <input type="email" name="email" class="form-control" required>
+                                            <input type="email" name="email" class="form-control" required 
+                                                   placeholder="example@domain.com">
+                                            <small class="form-text text-muted">Email phải hợp lệ và chưa được sử dụng</small>
                                         </div>
                                         <div class="form-group">
                                             <label><strong>Mật khẩu</strong></label>
-                                            <input type="password" name="password" id="password" class="form-control" required>
+                                            <input type="password" name="password" id="password" class="form-control" required minlength="6" 
+                                                   placeholder="Mật khẩu ít nhất 6 ký tự">
+                                            <small class="form-text text-muted">Mật khẩu mạnh nên có chữ hoa, chữ thường, số và ký tự đặc biệt</small>
+                                            <!-- Indicator hiển thị độ mạnh của mật khẩu sẽ được thêm vào bởi JS -->
                                         </div>
-                                        <div id="message" class="alert"></div>
                                         <div class="text-center mt-4">
                                             <button type="submit" class="btn btn-primary btn-block">Đăng ký</button>
                                         </div>
@@ -74,5 +87,8 @@
             </div>
         </div>
     </div>
+    
+    <!-- Thêm script cần thiết -->
+    <script src="{{ url_for('static', filename='js/register.js') }}"></script>
 </body>
 </html>

@@ -21,11 +21,11 @@ MYSQL_CONFIG = {
 # Connection Strings
 SQL_SERVER_CONN = "mssql+pyodbc://@KALI0CHUA/HUMAN?driver=ODBC+Driver+17+for+SQL+Server&trusted_connection=yes"
 
-MYSQL_CONN = "mysql+mysqlconnector://root:Thach4102004!@localhost:3306/Payroll_baitap"
+MYSQL_CONN = "mysql+mysqlconnector://root:Tritran0932523321@@@localhost:3306/sqlnewbie"
 
 # JWT Configuration
 JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'app1')
-JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
+JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
 
 # API Configuration
 API_PREFIX = '/api/v1' 

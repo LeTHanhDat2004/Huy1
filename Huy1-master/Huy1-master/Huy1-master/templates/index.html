@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -44,7 +44,7 @@
             Nav header start
         ***********************************-->
         <div class="nav-header">
-            <a href="{{ url_for('index') }}" class="brand-logo">
+            <a href="{{ url_for('dashboard') }}" class="brand-logo">
                 <img class="logo-abbr" src="{{ url_for('serve_images', filename='logo-white.png') }}" alt="HR">
                 <img class="logo-compact" src="{{ url_for('serve_images', filename='logo-text-white.png') }}" alt="HR Management">
                 <img class="brand-title" src="{{ url_for('serve_images', filename='logo-text-white.png') }}" alt="HR Management">
@@ -145,7 +145,7 @@
                                         <svg id="icon-inbox" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-mail"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
                                         <span class="ml-2">Inbox </span>
                                     </a>
-                                    <a href="page-login.html" class="dropdown-item ai-icon">
+                                    <a href="javascript:void(0);" onclick="TWS.logout();" class="dropdown-item ai-icon">
                                         <svg id="icon-logout" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-log-out"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                                         <span class="ml-2">Logout </span>
                                     </a>
@@ -167,7 +167,7 @@
     <div class="dlabnav-scroll">
         <ul class="metismenu" id="menu">
             <li class="nav-label first">Main Menu</li>
-            <li><a href="{{ url_for('index') }}">
+            <li><a href="{{ url_for('dashboard') }}">
                     <i class="la la-home"></i>
                     <span class="nav-text">Dashboard</span>
                 </a>
@@ -220,7 +220,7 @@
                 </a>
                 <ul aria-expanded="false">
                     <li><a href="{{ url_for('register') }}">Register</a></li>
-                    <li><a href="{{ url_for('login') }}">Login</a></li>
+                    <li><a href="{{ url_for('page_login') }}">Login</a></li>
                 </ul>
             </li>
         </ul>
@@ -385,6 +385,82 @@
     <script src="{{ url_for('serve_vendor', filename='svganimation/vivus.min.js') }}"></script>
     <script src="{{ url_for('serve_vendor', filename='svganimation/svg.animation.js') }}"></script>
     <script src="{{ url_for('serve_js', filename='styleSwitcher.js') }}"></script>
+    
+    <!-- Thm reference ti TWS.js -->
+    <script src="{{ url_for('static', filename='js/TWS.js') }}"></script>
+    
+    <!-- Thm script x l ccs li kt -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Km tra token dang np
+        if (typeof TWS !== 'undefined') {
+            if (!TWS.isAuthenticated()) {
+                console.log('Ngu dng chua dang np, chuyng huong dn trang login');
+                window.location.href = '/page-login';
+                return;
+            }
+            
+            console.log(' dang np vi token: ' + TWS.getToken().substring(0, 10) + '...');
+        }
+        
+        // Chn tt cc c click vo li kt /dashboard d s dng token
+        document.body.addEventListener('click', function(e) {
+            // Tm phn t a gn nht nu click vo con ca n
+            let target = e.target;
+            while(target && target.tagName !== 'A') {
+                target = target.parentElement;
+                if (!target) break;
+            }
+            
+            if (target && target.tagName === 'A') {
+                const href = target.getAttribute('href');
+                if (href && (href === '/dashboard' || href.startsWith('/dashboard?'))) {
+                    e.preventDefault();
+                    console.log('Chn click vo dashboard link, s dng TWS.goToDashboard()');
+                    
+                    if (typeof TWS !== 'undefined' && TWS.goToDashboard) {
+                        TWS.goToDashboard();
+                    } else {
+                        console.error('TWS.goToDashboard khng khng');
+                        // Fallback
+                        const token = localStorage.getItem('access_token');
+                        if (token) {
+                            const form = document.createElement('form');
+                            form.method = 'GET';
+                            form.action = '/dashboard';
+                            
+                            const tokenField = document.createElement('input');
+                            tokenField.type = 'hidden';
+                            tokenField.name = 'auth_token';
+                            tokenField.value = token;
+                            form.appendChild(tokenField);
+                            
+                            document.body.appendChild(form);
+                            form.submit();
+                        } else {
+                            window.location.href = '/page-login';
+                        }
+                    }
+                }
+            }
+        });
+        
+        // X l logout link
+        const logoutLinks = document.querySelectorAll('a[href="page-login.html"]');
+        logoutLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (typeof TWS !== 'undefined' && TWS.logout) {
+                    TWS.logout();
+                } else {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('user_role');
+                    window.location.href = '/page-login';
+                }
+            });
+        });
+    });
+    </script>
 		
 </body>
 </html>

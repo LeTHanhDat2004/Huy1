@@ -31,17 +31,17 @@
                                         <div class="form-group">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <label><strong>Username</strong></label>
-                                            <input type="text" name="username" class="form-control" value="{{ request.form.get('user', '') }}" required>
+                                            <input type="text" id="username" name="username" class="form-control" value="{{ request.form.get('user', '') }}" required>
                                         </div>
                                         <div class="form-group">
                                             <label><strong>Password</strong></label>
-                                            <input type="password" name="password" class="form-control" required>
+                                            <input type="password" id="password" name="password" class="form-control" required>
                                         </div>
                                         <div class="form-row d-flex justify-content-between mt-4 mb-2">
                                             <div class="form-group">
                                                <div class="custom-control custom-checkbox ml-1">
-													<input type="checkbox" class="custom-control-input" id="basic_checkbox_1">
-													<label class="custom-control-label" for="basic_checkbox_1">Remember my preference</label>
+													<input type="checkbox" class="custom-control-input" id="rememberMe">
+													<label class="custom-control-label" for="rememberMe">Remember my preference</label>
 												</div>
                                             </div>
                                             <div class="form-group">
@@ -52,6 +52,7 @@
                                             <button type="submit" class="btn btn-primary btn-block">Sign me in</button>
                                         </div>
                                     </form>
+                                    <div id="loginStatus"></div>
                                     <div class="new-account mt-3">
                                         <p>Don't have an account? <a class="text-primary" href="{{ url_for('register') }}">Sign up</a></p>
                                     </div>
@@ -70,40 +71,203 @@
     ***********************************-->
     <script src="{{ url_for('static', filename='js/TWS.js') }}"></script>
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        if (typeof TWS === 'undefined') {
-            console.error('TWS chưa được khởi tạo');
-            return;
-        }
+    // Thêm biến này để theo dõi requests
+    let debugInfo = {
+        requestUrl: null,
+        requestData: null,
+        responseStatus: null,
+        responseData: null,
+        errors: []
+    };
 
-        window.handleLogin = function(event) {
-            event.preventDefault();
+    // Helper function to create status div if it doesn't exist
+    function createStatusDiv() {
+        const loginForm = document.getElementById('loginForm');
+        const statusDiv = document.getElementById('loginStatus');
+        if (!statusDiv) {
+            const newStatusDiv = document.createElement('div');
+            newStatusDiv.id = 'loginStatus';
+            newStatusDiv.style.marginTop = '15px';
+            loginForm.parentNode.insertBefore(newStatusDiv, loginForm.nextSibling);
+            return newStatusDiv;
+        }
+        return statusDiv;
+    }
+    
+    // Hàm để lấy tham số từ URL
+    function getUrlParameter(name) {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get(name);
+    }
+
+    // Define handleLogin in global scope
+    function handleLogin(event) {
+        event.preventDefault();
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const rememberMe = document.getElementById('rememberMe').checked;
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+        const nextUrl = getUrlParameter('next') || '/dashboard';
+
+        // Clear any previous messages
+        const statusDiv = createStatusDiv();
+        statusDiv.innerHTML = '<div class="alert alert-info">Đang đăng nhập...</div>';
+
+        // Thêm debug code - hiển thị request details trước khi gửi
+        console.log('Login request details:',
+            '\nURL:', '/api/page-login',
+            '\nUsername:', username,
+            '\nPassword:', '*'.repeat(password.length),
+            '\nRemember:', rememberMe,
+            '\nCSRF Token:', csrfToken ? csrfToken.substring(0, 10) + '...' : 'Missing',
+            '\nNext URL:', nextUrl
+        );
+        
+        // Đặt debug info
+        debugInfo.requestUrl = '/api/page-login';
+        debugInfo.requestData = { username, password: '*****', rememberMe, csrfToken: csrfToken ? csrfToken.substring(0, 10) + '...' : null };
+        
+        // Thử trực tiếp gọi fetch thay vì qua TWS
+        fetch('/api/page-login', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ 
+                username, 
+                password, 
+                remember_me: rememberMe 
+            }),
+            credentials: 'include'
+        })
+        .then(response => {
+            // Lưu status response
+            debugInfo.responseStatus = response.status;
+            console.log('Login response status:', response.status);
             
-            // Lấy form elements bằng name
-            const form = event.target;
-            const username = form.querySelector('input[name="username"]');
-            const password = form.querySelector('input[name="password"]');
-            const rememberMe = form.querySelector('#basic_checkbox_1');
-            const csrfToken = form.querySelector('input[name="csrf_token"]');
+            // Kiểm tra xem response có ok không
+            if (!response.ok) {
+                throw new Error(`HTTP Error: ${response.status} - ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Lưu data response
+            debugInfo.responseData = data;
+            console.log('Login response data:', data);
             
-            // Kiểm tra elements tồn tại trước khi lấy value
-            if (!username || !password || !csrfToken) {
-                console.error('Không tìm thấy các trường form cần thiết');
-                return;
+            if (data && data.access_token && data.role) {
+                // Lưu token và role
+                localStorage.setItem('access_token', data.access_token);
+                localStorage.setItem('user_role', data.role);
+                
+                // Hiển thị thông tin
+                statusDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        Login successful! Token received and saved.
+                        <br>Token (first 10 chars): ${data.access_token.substring(0, 10)}...
+                        <br>Role: ${data.role}
+                        <br>Redirecting to ${nextUrl}...
+                        <br><button onclick="displayDebugInfo()">Show Debug Info</button>
+                    </div>
+                `;
+                
+                // Chuyển hướng sau 2 giây, sử dụng nextUrl thay vì cố định /dashboard
+                setTimeout(() => {
+                    window.location.href = `${nextUrl}?auth_token=${encodeURIComponent(data.access_token)}`;
+                }, 2000);
+            } else {
+                statusDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        Login failed: ${data.message || 'Unknown error'}
+                        <br><button onclick="displayDebugInfo()">Show Debug Info</button>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            debugInfo.errors.push(error.message);
+            console.error('Login error:', error);
+            
+            statusDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    Login error: ${error.message || 'Unknown error'}
+                    <br><button onclick="displayDebugInfo()">Show Debug Info</button>
+                </div>
+            `;
+        });
+    }
+    
+    // Function to display debug info
+    function displayDebugInfo() {
+        const debugOutput = document.createElement('div');
+        debugOutput.className = 'alert alert-info';
+        debugOutput.innerHTML = `
+            <h5>Debug Information</h5>
+            <pre>${JSON.stringify(debugInfo, null, 2)}</pre>
+        `;
+        
+        const statusDiv = document.getElementById('loginStatus');
+        statusDiv.appendChild(debugOutput);
+    }
+
+    // Kiểm tra nếu đã có token, chuyển hướng về dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+        // Hiển thị thông tin từ URL parameters nếu có
+        const urlParams = new URLSearchParams(window.location.search);
+        const error = urlParams.get('error');
+        const expired = urlParams.get('token_expired');
+        const nextUrl = urlParams.get('next') || '/dashboard';
+        
+        const statusDiv = createStatusDiv();
+        
+        if (expired === 'true') {
+            // Hiển thị thông báo token hết hạn và xóa token cũ
+            localStorage.removeItem('access_token');
+            statusDiv.innerHTML = `<div class="alert alert-warning">Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.</div>`;
+        } else if (error) {
+            let errorMessage = 'Unknown error';
+            
+            if (error === 'missing_token') {
+                errorMessage = 'Không thể lấy token từ localStorage';
+            } else if (error === 'redirect_error') {
+                errorMessage = 'Lỗi khi chuyển hướng đến dashboard';
             }
             
-            TWS.login({
-                username: username.value.trim(),
-                password: password.value,
-                rememberMe: rememberMe ? rememberMe.checked : false,
-                csrfToken: csrfToken.value
-            })
-            .then(success => {
-                if (success) {
-                    window.location.href = '/';
+            statusDiv.innerHTML = `<div class="alert alert-danger">${errorMessage}</div>`;
+        }
+        
+        // Kiểm tra nếu có tham số force=true trong URL thì không chuyển hướng
+        const forceLogin = urlParams.get('force');
+        
+        if (!forceLogin && !expired && TWS.isAuthenticated()) {
+            console.log('Đã có token, chuyển hướng đến:', nextUrl);
+            
+            // Hiển thị thông báo chuyển hướng
+            const token = TWS.getToken();
+            
+            statusDiv.innerHTML = `
+                <div class="alert alert-info">
+                    Đã đăng nhập trước đó.
+                    <br>Token: ${token ? token.substring(0, 10) + '...' : 'Không có'}
+                    <br>Chuyển hướng đến ${nextUrl}...
+                </div>
+            `;
+            
+            // Delay để tránh race condition
+            setTimeout(() => {
+                if (nextUrl === '/dashboard') {
+                    TWS.goToDashboard(); 
+                } else {
+                    window.location.href = `${nextUrl}?auth_token=${encodeURIComponent(token)}`;
                 }
-            });
-        };
+            }, 500);
+        } else if (forceLogin) {
+            console.log('Force login mode - không tự động chuyển hướng');
+        } else {
+            console.log('Không tìm thấy token hoặc token đã hết hạn - hiển thị form đăng nhập');
+        }
     });
     </script>
 </body>
