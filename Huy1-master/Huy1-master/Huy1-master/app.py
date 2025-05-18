@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, send_from_directory, url_for, redirect,flash
+from flask import Flask, request, jsonify, render_template, send_from_directory, url_for, redirect,flash,session
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token, 
     get_jwt_identity, verify_jwt_in_request, get_jwt
@@ -18,6 +18,12 @@ import traceback
 from functools import wraps
 from flask_wtf.csrf import CSRFProtect
 
+# Thêm các hằng số cho roles
+ROLE_ADMIN = 'admin'
+ROLE_HR = 'hr_manager'
+ROLE_EMPLOYEE = 'employee'
+ROLE_PAYROLL = 'payroll_manager'
+
 def role_required(allowed_roles):
     def decorator(fn):
         @wraps(fn)
@@ -36,17 +42,97 @@ app = Flask(__name__,
 app.config['JWT_SECRET_KEY'] = JWT_SECRET_KEY
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = JWT_ACCESS_TOKEN_EXPIRES
 app.secret_key = 'app1'
-CORS(app)  # Enable CORS for all routes
+app.config['JWT_SECRET_KEY'] = 'Tritran'
+CORS(app, resources={
+    r"/*": {
+        "origins": ["http://localhost:5000", "http://127.0.0.1:5000"],  # Chỉ định rõ origins
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization", "X-CSRFToken"],
+        "supports_credentials": True  # Quan trọng cho việc gửi cookies
+    }
+})  # Enable CORS for all routes
 jwt = JWTManager(app)
 csrf = CSRFProtect(app)  # Thêm dòng này để khởi tạo CSRF protection
+# Custom JWT error handlers
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_payload):
+    return jsonify({
+        'status': 401,
+        'sub_status': 'token_expired',
+        'msg': 'Token has expired'
+    }), 401
 
+@jwt.invalid_token_loader
+def invalid_token_callback(error):
+    return jsonify({
+        'status': 401,
+        'sub_status': 'invalid_token',
+        'msg': 'Invalid token: ' + str(error)
+    }), 401
+
+@jwt.unauthorized_loader
+def missing_token_callback(error):
+    return jsonify({
+        'status': 401,
+        'sub_status': 'missing_token',
+        'msg': 'Missing token: ' + str(error)
+    }), 401
+
+# Middleware để xử lý token từ query params và form
+@app.before_request
+def handle_auth_token():
+    # Nếu có token trong query params, thêm vào header
+    auth_token = request.args.get('auth_token')
+    if auth_token and 'Authorization' not in request.headers:
+        # Flask không cho phép sửa request.headers trực tiếp
+        # Nhưng chúng ta có thể sửa environ
+        request.environ['HTTP_AUTHORIZATION'] = f'Bearer {auth_token}'
+        
+        # Đối với các request đến dashboard, sau khi xử lý token từ query params,
+        # chuyển hướng đến URL không có query params để tránh double request
+        if request.path == '/dashboard' and len(request.args) > 0:
+            # Chỉ chuyển hướng nếu có query parameters
+            app.logger.debug('Redirecting dashboard request to clean URL')
+            return redirect('/dashboard')
+    
+    # Ghi log chi tiết request để debug
+    app.logger.debug('Request URL: %s', request.url)
+    app.logger.debug('Request method: %s', request.method)
+    app.logger.debug('Authorization header: %s', request.headers.get('Authorization', 'None'))
+    
+    # Kiểm tra double request
+    if request.path == '/dashboard':
+        app.logger.debug('Dashboard request detected')
+
+# Add token debug route
+@app.route('/debug/token')
+def debug_token():
+    auth_header = request.headers.get('Authorization', '')
+    token = None
+    if auth_header.startswith('Bearer '):
+        token = auth_header[7:]  # Remove 'Bearer ' prefix
+    
+    return jsonify({
+        'has_auth_header': bool(auth_header),
+        'auth_header': auth_header[:10] + '...' if auth_header else None,
+        'token_extracted': bool(token),
+        'token_preview': token[:10] + '...' if token else None,
+        'query_params': dict(request.args),
+        'form_data': dict(request.form),
+        'request_path': request.path,
+        'request_method': request.method
+    })
 db = pymysql.connect(
     host='localhost',
     user='root',
     password="Thach4102004!",
     database="payroll_baitap",
-    cursorclass=pymysql.cursors.DictCursor
+    cursorclass=pymysql.cursors.DictCursor,
+    connect_timeout=60,
+    read_timeout=30,
+    write_timeout=30
 )
+
 # Serve static files
 @app.route('/static/<path:filename>')
 def serve_static(filename):
@@ -76,7 +162,94 @@ def serve_vendor(filename):
 @app.route('/')
 def index():
     return render_template('index.html')
-
+@app.route('/dashboard')
+@jwt_required()
+def dashboard():
+    try:
+        # Lấy thông tin role từ JWT token
+        claims = get_jwt()
+        current_role = claims.get('role', 'employee')  # Mặc định là employee nếu không có role
+        
+        # Lấy dữ liệu chung cho tất cả các role
+        common_data = {
+            'user_info': get_jwt_identity(),
+            'current_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        
+        # Log thông tin token để debug
+        app.logger.debug(f'Dashboard access - User: {get_jwt_identity()}, Role: {current_role}')
+        
+        if current_role == 'admin':
+            # Admin sẽ thấy tất cả dữ liệu
+            try:
+                db = get_db_connection()
+                with db.cursor() as cursor:
+                    # Lấy danh sách nhân viên
+                    cursor.execute("SELECT * FROM employees")
+                    employees = cursor.fetchall()
+                    
+                    # Lấy thông tin phòng ban
+                    cursor.execute("SELECT * FROM departments")
+                    departments = cursor.fetchall()
+                    
+                    # Lấy thông tin lương
+                    cursor.execute("SELECT * FROM salaries")
+                    salaries = cursor.fetchall()
+                    
+                    return render_template('index.html',
+                        role='admin',
+                        employees=employees,
+                        departments=departments,
+                        salaries=salaries,
+                        **common_data
+                    )
+            except Exception as db_error:
+                app.logger.error(f'Database error in dashboard: {str(db_error)}')
+                return jsonify({'message': 'Lỗi cơ sở dữ liệu'}), 500
+            finally:
+                if 'db' in locals():
+                    db.close()
+        else:
+            # Employee chỉ thấy thông tin của mình
+            try:
+                db = get_db_connection()
+                with db.cursor() as cursor:
+                    # Lấy thông tin nhân viên hiện tại
+                    username = get_jwt_identity()
+                    cursor.execute("SELECT * FROM employees WHERE user = %s", (username,))
+                    employee = cursor.fetchone()
+                    
+                    # Lấy thông tin phòng ban của nhân viên
+                    if employee:
+                        cursor.execute("SELECT * FROM departments WHERE DepartmentID = %s", 
+                                     (employee['DepartmentID'],))
+                        department = cursor.fetchone()
+                    else:
+                        department = None
+                    
+                    return render_template('index.html',
+                        role='employee',
+                        employee=employee,
+                        department=department,
+                        **common_data
+                    )
+            except Exception as db_error:
+                app.logger.error(f'Database error in dashboard (employee): {str(db_error)}')
+                return jsonify({'message': 'Lỗi cơ sở dữ liệu'}), 500
+            finally:
+                if 'db' in locals():
+                    db.close()
+    except Exception as e:
+        app.logger.error(f'Error in dashboard route: {str(e)}')
+        traceback_str = traceback.format_exc()
+        app.logger.error(f'Traceback: {traceback_str}')
+        
+        # Kiểm tra nếu lỗi liên quan đến JWT
+        if 'jwt' in str(e).lower() or 'token' in str(e).lower():
+            return redirect(url_for('page_login'))
+            
+        return jsonify({'message': 'Có lỗi xảy ra', 'error': str(e)}), 500
+    
 @app.route('/all-employees')
 def all_employees():
     with db.cursor() as cursor:
@@ -432,27 +605,91 @@ def register():
 
 # Thêm route mới này
 @app.route('/page-login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
+def page_login():
+    if request.method == 'GET':
+        return render_template('page-login.html')
+    
+    try:
         data = request.get_json()
         username = data.get('username')
         password = data.get('password')
         
-        with db.cursor() as cursor:
-            cursor.execute('SELECT * FROM user_employee WHERE username = %s', (username,))
-            user = cursor.fetchone()
-            
-            if user and check_password_hash(user['password'], password):
-                access_token = create_access_token(identity=username)
-                return jsonify({
-                    'access_token': access_token,
-                    'role': user['role']
-                }), 200
-            return jsonify({'message': 'Sai tên đăng nhập hoặc mật khẩu'}), 401
-    return render_template('page-login.html')
+        # Kiểm tra thông tin đăng nhập từ database
+        connection = get_db_connection()
+        try:
+            with connection.cursor() as cursor:
+                # Kiểm tra trong bảng admin trước
+                cursor.execute('SELECT * FROM admin WHERE user = %s', (username,))
+                user = cursor.fetchone()
+                if user and check_password_hash(user['pass'], password):
+                    access_token = create_access_token(
+                        identity=username,
+                        additional_claims={'role': 'admin'}
+                    )
+                    return jsonify({
+                        'access_token': access_token,
+                        'role': 'admin'
+                    }), 200
 
-# Thêm route redirect cho page-login.html
+                # Nếu không có trong admin, kiểm tra trong user_employee
+                cursor.execute('SELECT * FROM user_employee WHERE username = %s', (username,))
+                user = cursor.fetchone()
+                if user and check_password_hash(user['password'], password):
+                    access_token = create_access_token(
+                        identity=username,
+                        additional_claims={'role': 'employee'}
+                    )
+                    return jsonify({
+                        'access_token': access_token,
+                        'role': 'employee'
+                    }), 200
 
+            return jsonify({'message': 'Invalid credentials'}), 401
+        finally:
+            connection.close()
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
+
+# Thêm route alias cho route page-login để tương thích với code cũ
+
+@app.route('/login')
+def login():
+    # Chuyển tiếp bất kỳ query params nào tới page-login
+    if request.args:
+        return redirect(url_for('page_login', **request.args))
+    return redirect(url_for('page_login'))
+
+# Thêm decorator để kiểm tra quyền truy cập
+def role_required(allowed_roles):
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            verify_jwt_in_request()
+            claims = get_jwt()
+            if claims.get('role') in allowed_roles:
+                return fn(*args, **kwargs)
+            return jsonify({'message': 'Không có quyền truy cập'}), 403
+        return wrapper
+    return decorator
+# Ví dụ sử dụng decorator để bảo vệ route
+@app.route('/admin-dashboard')
+@jwt_required()
+@role_required(['admin'])
+def admin_dashboard():
+    return render_template('admin-dashboard.html')
+
+@app.route('/employee-dashboard')
+@jwt_required()
+@role_required(['employee'])
+def employee_dashboard():
+    return render_template('employee-dashboard.html')
+
+# Route cho cả admin và employee
+@app.route('/profile')
+@jwt_required()
+@role_required(['admin', 'employee'])
+def profile():
+    return render_template('profile.html')
 
 
 
@@ -615,44 +852,14 @@ def get_employee_profile(id):
 
 @app.route('/api/add-employee', methods=['POST'])
 @jwt_required()
-@role_required(['admin', 'hr'])  # Chỉ admin và HR mới có quyền thêm nhân viên
+@role_required([ROLE_ADMIN, ROLE_PAYROLL])
 def api_add_employee():
     try:
-        data = request.get_json()
-        print("🔎 Dữ liệu nhận được:", data)  # <--- THÊM DÒNG NÀY
-        # Add to SQL Server
-        engine_sql = get_sql_server_connection()
-        query_sql = """
-            INSERT INTO Employees (FullName, DateOfBirth, Gender, PhoneNumber, Email, 
-                                 HireDate, DepartmentID, PositionID, Status, CreatedAt, UpdatedAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE())
-        """
-        with engine_sql.connect() as conn:
-            result = conn.execute(query_sql, (
-                data['FullName'], data['DateOfBirth'], data['Gender'], data['PhoneNumber'],
-                data['Email'], data['HireDate'], data['DepartmentID'], data['PositionID'],
-                data['Status']
-            ))
-            employee_id = conn.execute("SELECT SCOPE_IDENTITY()").scalar()
-        
-        # Add to MySQL payroll
-        engine_mysql = get_mysql_connection()
-        query_mysql = """
-            INSERT INTO employees (EmployeeID, FullName, DepartmentID, PositionID, Status)
-            VALUES (%s, %s, %s, %s, %s)
-        """
-        with engine_mysql.connect() as conn:
-            conn.execute(query_mysql, (
-                employee_id, data['FullName'], data['DepartmentID'], 
-                data['PositionID'], data['Status'], data['Email'],
-                data['DateOfBirth'], data['HireDate'], data['Gender'],
-                data['PhoneNumber']
-            ))
-        
-        return jsonify({'message': 'Employee added successfully', 'employee_id': employee_id}), 201
-        
+        engine = get_mysql_connection()
+        query = "SELECT * FROM salaries"
+        df = pd.read_sql(query, engine)
+        return jsonify(df.to_dict(orient='records'))
     except Exception as e:
-        traceback.print_exc()  # log lỗi đầy đủ ra console
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/update-employee/<int:employee_id>', methods=['PUT'])
@@ -731,24 +938,25 @@ def generate_token(user_id, role):
         'exp': datetime.utcnow() + timedelta(hours=24)
     }, app.config['SECRET_KEY'])
     return token
+
+
+
+def generate_token(user_id, role):
+    token = jwt.encode({
+        'user_id': user_id,
+        'role': role,
+        'exp': datetime.utcnow() + timedelta(hours=24)
+    }, app.config['SECRET_KEY'])
+    return token
 @app.route('/api/user-info', methods=['GET'])
 @jwt_required()
-def user_info():
+def get_user_info():
     current_user = get_jwt_identity()
     return jsonify({'logged_in_as': current_user})
 
 
-
-
-
-# Thêm các hằng số cho roles
-ROLE_ADMIN = 'admin'
-ROLE_HR = 'hr_manager'
-ROLE_EMPLOYEE = 'employee'
-ROLE_PAYROLL = 'payroll_manager'
-
 # Cập nhật cấu hình JWT
-app.config['JWT_SECRET_KEY'] = 'your-super-secret-key'  # Thay đổi key này
+  # Thay đổi key này
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 
 
@@ -779,47 +987,6 @@ def get_payroll():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/add-employee', methods=['POST'])
-@jwt_required()
-@role_required(['admin', 'hr'])  # Chỉ admin và HR mới có quyền thêm nhân viên
-def api_add_employee_v2():
-    try:
-        data = request.get_json()
-        print("🔎 Dữ liệu nhận được:", data)  # <--- THÊM DÒNG NÀY
-        # Add to SQL Server
-        engine_sql = get_sql_server_connection()
-        query_sql = """
-            INSERT INTO Employees (FullName, DateOfBirth, Gender, PhoneNumber, Email, 
-                                 HireDate, DepartmentID, PositionID, Status, CreatedAt, UpdatedAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE())
-        """
-        with engine_sql.connect() as conn:
-            result = conn.execute(query_sql, (
-                data['FullName'], data['DateOfBirth'], data['Gender'], data['PhoneNumber'],
-                data['Email'], data['HireDate'], data['DepartmentID'], data['PositionID'],
-                data['Status']
-            ))
-            employee_id = conn.execute("SELECT SCOPE_IDENTITY()").scalar()
-        
-        # Add to MySQL payroll
-        engine_mysql = get_mysql_connection()
-        query_mysql = """
-            INSERT INTO employees (EmployeeID, FullName, DepartmentID, PositionID, Status)
-            VALUES (%s, %s, %s, %s, %s)
-        """
-        with engine_mysql.connect() as conn:
-            conn.execute(query_mysql, (
-                employee_id, data['FullName'], data['DepartmentID'], 
-                data['PositionID'], data['Status'], data['Email'],
-                data['DateOfBirth'], data['HireDate'], data['Gender'],
-                data['PhoneNumber']
-            ))
-        
-        return jsonify({'message': 'Employee added successfully', 'employee_id': employee_id}), 201
-        
-    except Exception as e:
-        traceback.print_exc()  # log lỗi đầy đủ ra console
-        return jsonify({'error': str(e)}), 500
 @app.route('/check-attendance', methods=['POST'])
 def check_attendance():
     data = request.get_json()
@@ -877,11 +1044,9 @@ def api_register():
         return jsonify({'message': 'User registered successfully'}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-@app.route('/api/user-info', methods=['GET'])
-@jwt_required()
-def get_user_info():
-    current_user = get_jwt_identity()
-    return jsonify({'logged_in_as': current_user})
+
+
+
 
 
 

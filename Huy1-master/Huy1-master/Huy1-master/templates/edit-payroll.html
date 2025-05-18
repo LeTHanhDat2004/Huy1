@@ -285,6 +285,12 @@
                                             </div>
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
+                                                    <label>Fullname</label>
+                                                    <input type="text" class="form-control" name="Fullname" value="{{ payroll.FullName }}" required>
+                                                </div>
+                                            </div>
+                                            <div class="col-lg-6 col-md-6 col-sm-12">
+                                                <div class="form-group">
                                                     <label>Department</label>
                                                     <select class="form-control" name="DepartmentID" required>
                                                         {% for dept in departments %}
@@ -293,12 +299,7 @@
                                                     </select>
                                                 </div>
                                             </div>
-                                            <div class="col-lg-6 col-md-6 col-sm-12">
-                                                <div class="form-group">
-                                                    <label>Fullname</label>
-                                                    <input type="text" class="form-control" name="Fullname" value="{{ payroll.Fullname }}" required>
-                                                </div>
-                                            </div>
+                                           
                                             <div class="col-lg-6 col-md-6 col-sm-12">
                                                 <div class="form-group">
                                                     <label>Position</label>
@@ -369,5 +370,28 @@
     <script src="{{ url_for('static', filename='vendor/pickadate/picker.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/pickadate/picker.time.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/pickadate/picker.date.js') }}"></script>
+    <script>
+        $(document).ready(function() {
+            $('#updatePayrollForm').submit(function(e) {
+                e.preventDefault();
+                var formData = $(this).serialize();
+                $.ajax({
+                    url: '/update_payroll', 
+                    type: 'POST',
+                    data: formData,
+                    success: function(response) {
+                        alert('Payroll updated successfully');
+                    },
+                    error: function(xhr, status, error) {
+                        alert('Error updating payroll');
+                    }
+                });
+            });
+        });
+    </script>
+                        
+                        
+        
+    </script>
     </body>
 </html> 
